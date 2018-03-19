@@ -1,0 +1,6 @@
+# This series applies on GIT commit 992c481f21e266e7cdfcee1d425b18da4df9ef8d
+01-expose-functions-for-pausing.patch
+02-expose-function-for-setting.patch
+03-add-function-for-setting-the.patch
+04-add-functions-to-get-set-block.patch
+05-expose-function-for-getting.patch

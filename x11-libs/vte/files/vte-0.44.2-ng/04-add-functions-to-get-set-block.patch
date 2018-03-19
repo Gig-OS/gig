@@ -1,0 +1,62 @@
+add functions to get/set block selection mode
+
+From: Jelle van der Waa <jelle@vdwaa.nl>
+
+
+---
+ src/vte/vteterminal.h |    5 +++++
+ src/vtegtk.cc         |   25 +++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)
+
+diff --git a/src/vte/vteterminal.h b/src/vte/vteterminal.h
+index 822f44f..22ee7f7 100644
+--- a/src/vte/vteterminal.h
++++ b/src/vte/vteterminal.h
+@@ -188,6 +188,11 @@ void vte_terminal_select_all(VteTerminal *terminal) _VTE_GNUC_NONNULL(1);
+ _VTE_PUBLIC
+ void vte_terminal_unselect_all(VteTerminal *terminal) _VTE_GNUC_NONNULL(1);
+ _VTE_PUBLIC
++gboolean vte_terminal_get_selection_block_mode(VteTerminal *terminal) _VTE_GNUC_NONNULL(1);
++_VTE_PUBLIC
++void vte_terminal_set_selection_block_mode(VteTerminal *terminal,
++                                            gboolean block_mode) _VTE_GNUC_NONNULL(1);
++_VTE_PUBLIC
+ void vte_terminal_select_text(VteTerminal *terminal, long start_col, long start_row,
+ 			      long end_col, long end_row) _VTE_GNUC_NONNULL(1);
+ 
+diff --git a/src/vtegtk.cc b/src/vtegtk.cc
+index 66bfe3b..27734c2 100644
+--- a/src/vtegtk.cc
++++ b/src/vtegtk.cc
+@@ -2144,6 +2144,31 @@ vte_terminal_unselect_all(VteTerminal *terminal)
+ 
+         IMPL(terminal)->deselect_all();
+ }
++/**
++ * vte_terminal_get_selection_block_mode:
++ * @terminal: a #VteTerminal
++ *
++ * Checks whether or not block selection is enabled.
++ *
++ * Returns: %TRUE if block selection is enabled, %FALSE if not
++ */
++
++gboolean vte_terminal_get_selection_block_mode(VteTerminal *terminal) {
++        g_return_val_if_fail(VTE_IS_TERMINAL(terminal), FALSE);
++	return IMPL(terminal)->m_selection_block_mode;
++}
++/**
++ * vte_terminal_set_selection_block_mode:
++ * @terminal: a #VteTerminal
++ * @block_mode: whether block selection is enabled
++ *
++ * Sets whether or not block selection is enabled.
++ */
++void
++vte_terminal_set_selection_block_mode(VteTerminal *terminal, gboolean block_mode) {
++	g_return_if_fail (VTE_IS_TERMINAL (terminal));
++	IMPL(terminal)->m_selection_block_mode = block_mode;
++}
+ 
+ /**
+  * vte_terminal_select_text:

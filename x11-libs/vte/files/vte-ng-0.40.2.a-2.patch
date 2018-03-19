@@ -1,0 +1,56 @@
+From e06d88d4d8174746602f9408438f2271bdbbc3bd Mon Sep 17 00:00:00 2001
+From: Daniel Micay <danielmicay@gmail.com>
+Date: Sun, 21 Jun 2015 09:57:38 -0400
+Subject: [PATCH] expose function for setting the cursor position
+
+---
+ src/vte.c         | 22 ++++++++++++++++++++++
+ src/vteterminal.h |  2 ++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/src/vte.c b/src/vte.c
+index efa65dc..91c2a3a 100644
+--- a/src/vte.c
++++ b/src/vte.c
+@@ -6303,6 +6303,28 @@ vte_terminal_get_cursor_position(VteTerminal *terminal,
+ 	}
+ }
+ 
++/**
++ * vte_terminal_set_cursor_position:
++ * @terminal: a #VteTerminal
++ * @column: the new cursor column
++ * @row: the new cursor row
++ *
++ * Set the location of the cursor.
++ */
++void
++vte_terminal_set_cursor_position(VteTerminal *terminal,
++				 long column, long row)
++{
++	g_return_if_fail(VTE_IS_TERMINAL(terminal));
++
++	_vte_invalidate_cursor_once(terminal, FALSE);
++	terminal->pvt->cursor.col = column;
++	terminal->pvt->cursor.row = row;
++	_vte_invalidate_cursor_once(terminal, FALSE);
++	_vte_check_cursor_blink(terminal);
++	vte_terminal_queue_cursor_moved(terminal);
++}
++
+ static GtkClipboard *
+ vte_terminal_clipboard_get(VteTerminal *terminal, GdkAtom board)
+ {
+diff --git a/src/vteterminal.h b/src/vteterminal.h
+index d5d5871..a056b06 100644
+--- a/src/vteterminal.h
++++ b/src/vteterminal.h
+@@ -284,6 +284,8 @@ char *vte_terminal_get_text_range(VteTerminal *terminal,
+ void vte_terminal_get_cursor_position(VteTerminal *terminal,
+ 				      glong *column,
+                                       glong *row) _VTE_GNUC_NONNULL(1);
++void vte_terminal_set_cursor_position(VteTerminal *terminal,
++				      long column, long row) _VTE_GNUC_NONNULL(1);
+ 
+ /* Add a matching expression, returning the tag the widget assigns to that
+  * expression. */

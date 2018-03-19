@@ -1,0 +1,56 @@
+add function for setting the text selections
+
+From: Jelle van der Waa <jelle@vdwaa.nl>
+
+
+---
+ src/vte/vteterminal.h |    4 ++++
+ src/vtegtk.cc         |   20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/src/vte/vteterminal.h b/src/vte/vteterminal.h
+index b53a582a..53eb3139 100644
+--- a/src/vte/vteterminal.h
++++ b/src/vte/vteterminal.h
+@@ -195,6 +195,10 @@ _VTE_PUBLIC
+ void vte_terminal_select_all(VteTerminal *terminal) _VTE_GNUC_NONNULL(1);
+ _VTE_PUBLIC
+ void vte_terminal_unselect_all(VteTerminal *terminal) _VTE_GNUC_NONNULL(1);
++_VTE_PUBLIC
++void vte_terminal_select_text(VteTerminal *terminal, long start_col, long start_row,
++			      long end_col, long end_row) _VTE_GNUC_NONNULL(1);
++
+ 
+ /* By-word selection */
+ _VTE_PUBLIC
+diff --git a/src/vtegtk.cc b/src/vtegtk.cc
+index b0039481..8ab4aa47 100644
+--- a/src/vtegtk.cc
++++ b/src/vtegtk.cc
+@@ -2135,6 +2135,26 @@ vte_terminal_unselect_all(VteTerminal *terminal)
+         IMPL(terminal)->deselect_all();
+ }
+ 
++/**
++ * vte_terminal_select_text:
++ * @terminal: a #VteTerminal
++ * @start_col: the starting column for the selection
++ * @start_row: the starting row for the selection
++ * @end_col: the end column for the selection
++ * @end_row: the end row for the selection
++ *
++ * Sets the current selection region.
++ */
++void
++vte_terminal_select_text(VteTerminal *terminal,
++		         long start_col, long start_row,
++			 long end_col, long end_row)
++{
++	g_return_if_fail (VTE_IS_TERMINAL (terminal));
++
++        IMPL(terminal)->select_text(start_col, start_row, end_col, end_row);
++}
++
+ /**
+  * vte_terminal_get_cursor_position:
+  * @terminal: a #VteTerminal

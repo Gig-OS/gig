@@ -1,0 +1,63 @@
+From 86d350b9c7a3f1416c69515d38f4ca6f7b0feabc Mon Sep 17 00:00:00 2001
+From: Daniel Micay <danielmicay@gmail.com>
+Date: Sun, 21 Jun 2015 10:00:11 -0400
+Subject: [PATCH] expose function for getting the selected text
+
+---
+ src/vte.c         | 2 +-
+ src/vteaccess.c   | 2 +-
+ src/vteint.h      | 1 -
+ src/vteterminal.h | 2 ++
+ 4 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/vte.c b/src/vte.c
+index c64887b..06a8ebb 100644
+--- a/src/vte.c
++++ b/src/vte.c
+@@ -12343,7 +12343,7 @@ _vte_terminal_accessible_ref(VteTerminal *terminal)
+ }
+ 
+ char *
+-_vte_terminal_get_selection(VteTerminal *terminal)
++vte_terminal_get_selection(VteTerminal *terminal)
+ {
+ 	g_return_val_if_fail(VTE_IS_TERMINAL(terminal), NULL);
+ 
+diff --git a/src/vteaccess.c b/src/vteaccess.c
+index 41d4cf1..5b2eaa2 100644
+--- a/src/vteaccess.c
++++ b/src/vteaccess.c
+@@ -1444,7 +1444,7 @@ vte_terminal_accessible_get_selection(AtkText *text, gint selection_number,
+ 	*start_offset = offset_from_xy (priv, start_x, start_y);
+ 	_vte_terminal_get_end_selection (terminal, &end_x, &end_y);
+ 	*end_offset = offset_from_xy (priv, end_x, end_y);
+-	return _vte_terminal_get_selection (terminal);
++	return vte_terminal_get_selection (terminal);
+ }
+ 
+ static gboolean
+diff --git a/src/vteint.h b/src/vteint.h
+index fd5d62d..601ba56 100644
+--- a/src/vteint.h
++++ b/src/vteint.h
+@@ -25,7 +25,6 @@
+ G_BEGIN_DECLS
+ 
+ void _vte_terminal_accessible_ref(VteTerminal *terminal);
+-char* _vte_terminal_get_selection(VteTerminal *terminal);
+ void _vte_terminal_get_start_selection(VteTerminal *terminal, long *x, long *y);
+ void _vte_terminal_get_end_selection(VteTerminal *terminal, long *x, long *y);
+ void _vte_terminal_select_text(VteTerminal *terminal, long start_x, long start_y, long end_x, long end_y, int start_offset, int end_offset);
+diff --git a/src/vteterminal.h b/src/vteterminal.h
+index 2ad8cc6..a980d4c 100644
+--- a/src/vteterminal.h
++++ b/src/vteterminal.h
+@@ -175,6 +175,8 @@ void vte_terminal_set_selection_block_mode(VteTerminal *terminal,
+ void vte_terminal_select_text(VteTerminal *terminal,
+                               long start_col, long start_row,
+                               long end_col, long end_row) _VTE_GNUC_NONNULL(1);
++char *
++vte_terminal_get_selection(VteTerminal *terminal) _VTE_GNUC_NONNULL(1);
+ 
+ /* pause and unpause output */
+ void vte_terminal_disconnect_pty_read(VteTerminal *vte);

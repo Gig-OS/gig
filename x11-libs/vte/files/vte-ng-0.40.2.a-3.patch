@@ -1,0 +1,53 @@
+From 1dae60049dec98a36ba08677d6732cb613fe796c Mon Sep 17 00:00:00 2001
+From: Daniel Micay <danielmicay@gmail.com>
+Date: Sun, 21 Jun 2015 09:59:05 -0400
+Subject: [PATCH] add function for setting the text selection
+
+---
+ src/vte.c         | 18 ++++++++++++++++++
+ src/vteterminal.h |  3 +++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/src/vte.c b/src/vte.c
+index 91c2a3a..b5c4b52 100644
+--- a/src/vte.c
++++ b/src/vte.c
+@@ -7005,6 +7005,24 @@ vte_terminal_unselect_all(VteTerminal *terminal)
+ 	vte_terminal_deselect_all (terminal);
+ }
+ 
++
++/**
++ * vte_terminal_select_text:
++ * @terminal: a #VteTerminal
++ * @start_col: the starting column for the selection
++ * @start_row: the starting row for the selection
++ * @end_col: the end column for the selection
++ * @end_row: the end row for the selection
++ *
++ * Sets the current selection region.
++ */
++void
++vte_terminal_select_text(VteTerminal *terminal,
++			 long start_col, long start_row,
++			 long end_col, long end_row) {
++	_vte_terminal_select_text(terminal, start_col, start_row, end_col, end_row, 0, 0);
++}
++
+ /* Autoscroll a bit. */
+ static gboolean
+ vte_terminal_autoscroll(VteTerminal *terminal)
+diff --git a/src/vteterminal.h b/src/vteterminal.h
+index a056b06..4b3d29f 100644
+--- a/src/vteterminal.h
++++ b/src/vteterminal.h
+@@ -169,6 +169,9 @@ void vte_terminal_paste_primary(VteTerminal *terminal) _VTE_GNUC_NONNULL(1);
+ 
+ void vte_terminal_select_all(VteTerminal *terminal) _VTE_GNUC_NONNULL(1);
+ void vte_terminal_unselect_all(VteTerminal *terminal) _VTE_GNUC_NONNULL(1);
++void vte_terminal_select_text(VteTerminal *terminal,
++                              long start_col, long start_row,
++                              long end_col, long end_row) _VTE_GNUC_NONNULL(1);
+ 
+ /* pause and unpause output */
+ void vte_terminal_disconnect_pty_read(VteTerminal *vte);
