@@ -32,10 +32,12 @@ src_test() {
 
 src_install() {
 	emake DESTDIR="${D}" install
+
+	newinitd "${FILESDIR}/trojan.initd" trojan
 }
 
 pkg_postinst(){
-	elog "You need to choose the mod"
-	elog "  server: rc-update add trojan.server default"
-	elog "  client: rc-update add trojan.client default"
+	elog "To use trojan"
+	elog "OpenRC: rc-update add trojan"
+	elog "Systemd: systemctl enable trojan"
 }
