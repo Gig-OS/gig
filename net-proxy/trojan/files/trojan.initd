@@ -4,6 +4,7 @@
 
 TJ_CONFIG="/etc/trojan.json"
 TJ_PIDFILE="/run/trojan.pid"
+TJ_LOG="/var/log/trojan.log"
 
 depend() {
 	need net
@@ -19,9 +20,9 @@ start() {
 	checkconfig || return 1
 
 	ebegin "Starting Trojan"
-	ebegin "Log File: /var/log/trojan.log"
+	ebegin "Log File: ${TJ_LOG}"
 	start-stop-daemon --start	\
-	-b -1 /var/log/${PN}.log -2 /var/log/${PN}.log	\
+	-b -1 ${TJ_LOG} -2 ${TJ_LOG}	\
 	-m -p ${TJ_PIDFILE}		\
 	--exec /usr/bin/trojan  -- ${TJ_CONFIG}
 	eend $?
