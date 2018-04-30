@@ -19,3 +19,10 @@ sync-type = git
 sync-uri = https://github.com/Gig-OS/gig.git
 auto-sync = Yes
 ```
+
+And sync it !
+```
+emerge --sync
+```
+
+Enjoy !
