@@ -16,8 +16,7 @@ Add :
 [gig]
 priority = 50
 location = /var/lib/layman/gig
-layman-type = git
-sync-type = laymansync
+sync-type = git
 sync-uri = https://github.com/Gig-OS/gig.git
 auto-sync = Yes
 ```
