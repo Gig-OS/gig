@@ -26,10 +26,6 @@ src_configure() {
 	emake
 }
 
-src_test() {
-	ctest
-}
-
 src_install() {
 	emake DESTDIR="${D}" install
 
@@ -37,7 +33,7 @@ src_install() {
 }
 
 pkg_postinst(){
-	elog "To use trojan"
+	elog "To use trojan , you need to edit the /etc/trojan.json"
 	elog "OpenRC: rc-update add trojan"
 	elog "Systemd: systemctl enable trojan"
 }
