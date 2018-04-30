@@ -7,7 +7,6 @@
 **How to use :**
 
 ```
-emerge --sync && emerge -av layman
 vim /etc/portage/repos.conf/layman.conf
 ```
 
