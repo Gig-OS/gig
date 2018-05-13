@@ -27,7 +27,7 @@ DEPEND="
 RDEPEND="${DEPEND}"
 
 src_configure() {
-	git tag -f "0.0.5"
+	git tag -f "$PV"
 	git submodule update --init --recursive
 }
 
