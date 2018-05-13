@@ -41,5 +41,5 @@ src_compile() {
 
 src_install() {
 	cd ${S}/build
-	ninja install
+	DESTDIR="${D}" ninja install
 }
