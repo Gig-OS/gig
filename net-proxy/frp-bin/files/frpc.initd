@@ -24,7 +24,7 @@ start() {
 	start-stop-daemon --start	\
 	-b -1 ${FRPC_LOG} -2 ${FRPC_LOG}	\
 	-m -p ${FRPC_PIDFILE}		\
-	--exec /usr/bin/frpsc  -- -c ${FRPC_CONFIG}
+	--exec /usr/bin/frpc  -- -c ${FRPC_CONFIG}
 	eend $?
 }
 

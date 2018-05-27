@@ -11,6 +11,7 @@ SRC_URI="
 	amd64?	( https://github.com/fatedier/frp/releases/download/${MY_PV}/frp_${PV}_linux_amd64.tar.gz )
 	x86?	( https://github.com/fatedier/frp/releases/download/${MY_PV}/frp_${PV}_linux_386.tar.gz )
 	arm?	( https://github.com/fatedier/frp/releases/download/${MY_PV}/frp_${PV}_linux_arm.tar.gz )
+	arm64?	( https://github.com/fatedier/frp/releases/download/${MY_PV}/frp_${PV}_linux_arm.tar.gz )
 	mips?	( https://github.com/fatedier/frp/releases/download/${MY_PV}/frp_${PV}_linux_mips.tar.gz )
 "
 
