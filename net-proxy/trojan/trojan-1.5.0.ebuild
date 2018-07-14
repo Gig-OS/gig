@@ -18,6 +18,7 @@ DEPEND="
 	dev-util/cmake
 	dev-libs/boost
 	dev-libs/openssl
+	dev-db/mysql-connector-c
 "
 RDEPEND="${DEPEND}"
 
