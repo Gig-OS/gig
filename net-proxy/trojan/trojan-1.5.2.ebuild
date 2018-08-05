@@ -3,11 +3,9 @@
 
 EAPI=6
 
-MY_PV="v${PV}"
-
 DESCRIPTION="An unidentifiable mechanism that helps you bypass GFW."
 HOMEPAGE="https://trojan-gfw.github.io/trojan/"
-SRC_URI="https://github.com/trojan-gfw/${PN}/archive/${MY_PV}.tar.gz"
+SRC_URI="https://github.com/trojan-gfw/${PN}/archive/v${PV}.tar.gz -> ${P}.tar.gz"
 
 LICENSE="GPL-3.0"
 SLOT="0"
