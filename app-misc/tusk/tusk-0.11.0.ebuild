@@ -22,7 +22,7 @@ RDEPEND="
 	>=gnome-base/gconf-2
 	x11-libs/libnotify
 	x11-libs/libXtst
-	x11-libs/libxscrnsaver
+	x11-libs/libXScrnSaver
 	>=dev-libs/nss-3
 	"
 
