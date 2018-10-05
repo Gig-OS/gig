@@ -132,8 +132,3 @@ src_install() {
 	cargo_src_install
 	einstalldocs
 }
-
-pkg_postinst() {
-	elog "Updating cache"
-	tldr --update
-}
