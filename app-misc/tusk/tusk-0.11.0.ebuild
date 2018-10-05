@@ -7,11 +7,14 @@ inherit unpacker gnome2-utils xdg-utils
 
 DESCRIPTION="Refined Evernote desktop app"
 HOMEPAGE="https://klauscfhq.github.io/tusk"
-SRC_URI="https://github.com/klauscfhq/tusk/releases/download/v${PV}/tusk_${PV}_amd64.deb -> ${P}-amd64.deb"
+SRC_URI="
+	amd64? ( https://github.com/klauscfhq/tusk/releases/download/v${PV}/tusk_${PV}_amd64.deb -> ${P}-amd64.deb )
+	x86? ( https://github.com/klauscfhq/tusk/releases/download/v${PV}/tusk_${PV}_i386.deb -> ${P}-i386.deb )
+"
 
 LICENSE="MIT"
 SLOT="0"
-KEYWORDS="~amd64"
+KEYWORDS="~amd64 ~x86"
 
 S="${WORKDIR}"
 
