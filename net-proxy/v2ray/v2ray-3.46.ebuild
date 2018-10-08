@@ -41,8 +41,7 @@ src_install() {
 	insinto /etc/v2ray
 	doins *.json
 
-	insinto /usr/share/v2ray
-	doins geoip.dat geosite.dat
+	dobin geoip.dat geosite.dat
 
 	dodoc readme.md
 
@@ -50,11 +49,5 @@ src_install() {
 	systemd_dounit systemd/v2ray.service
 
 	popd
-}
-
-pkg_postinst() {
-	elog "You may need to add v2ray User&Group for security concerns."
-	elog "Then you need to modify the /lib/systemd/system/v2ray.service for systemd user"
-	elog "and /etc/init.d/v2ray for openRC user"
 }
 
