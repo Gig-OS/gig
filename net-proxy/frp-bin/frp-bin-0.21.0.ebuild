@@ -17,7 +17,7 @@ SRC_URI="
 
 LICENSE="Apache-2.0"
 SLOT="0"
-KEYWORDS="~amd64 ~x86 ~arm ~mips"
+KEYWORDS="~amd64 ~arm ~x86 ~mips"
 IUSE=""
 
 DEPEND=""
@@ -27,7 +27,7 @@ src_unpack() {
 	if [ "${A}" != "" ]; then
 		unpack ${A}
 	fi
-	mv * ${PN}-${PV}
+	mv * "${PN}"-"${PV}"
 }
 
 src_install() {
@@ -41,10 +41,4 @@ src_install() {
 	newinitd "${FILESDIR}/frpc.initd" frpc
 	systemd_dounit ${FILESDIR}/frps.service
 	systemd_dounit ${FILESDIR}/frpc.service
-}
-
-pkg_postinst() {
-	elog "To enable/use Frp service :"
-	elog "rc-update add frps default or rc-update add frpc default"
-	elog "systemctl enable frps or systemctl enable frpc"
 }
