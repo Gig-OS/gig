@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=6
-MY_PV="${PV}-c"
+MY_PV="${PV}.c"
 
 DESCRIPTION="improved improved screen locker - 'the ricing fork of i3lock'"
 HOMEPAGE="https://github.com/PandorasFox/i3lock-color"
@@ -25,7 +25,7 @@ DEPEND="
 "
 RDEPEND="${DEPEND}"
 
-S="${WORKDIR}/${P}-c"
+S="${WORKDIR}/${P}.c"
 
 src_compile() {
 	autoreconf -i
