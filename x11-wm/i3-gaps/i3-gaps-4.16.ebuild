@@ -38,7 +38,7 @@ RDEPEND="${CDEPEND}
 	!x11-wm/i3"
 
 DOCS=( RELEASE-NOTES-${PV} )
-PATCHES[0]="${FILESDIR}/musl.patch"
+#PATCHES[0]="${FILESDIR}/musl.patch"
 
 src_prepare() {
 	default
