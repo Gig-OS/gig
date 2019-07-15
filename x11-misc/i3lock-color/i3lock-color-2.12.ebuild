@@ -14,7 +14,7 @@ KEYWORDS="~amd64 ~x86"
 IUSE=""
 
 DEPEND="
-	dev-util/pkgconfig
+	dev-util/pkgconf
 	x11-libs/libxcb
 	dev-libs/libcdio
 	media-libs/fontconfig

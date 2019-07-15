@@ -13,7 +13,9 @@ KEYWORDS="~amd64"
 IUSE=""
 
 DEPEND=""
-RDEPEND="${DEPEND}"
+RDEPEND="
+	x11-libs/libXScrnSaver
+	${DEPEND}"
 BDEPEND=""
 
 src_unpack() {
