@@ -3,7 +3,7 @@
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
 
-EAPI=6
+EAPI=7
 
 inherit eutils toolchain-funcs versionator
 if [[ 9999 == $PV ]]; then

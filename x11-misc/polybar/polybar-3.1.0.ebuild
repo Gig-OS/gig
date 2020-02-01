@@ -1,7 +1,7 @@
 # Copyright 1999-2018 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=6
+EAPI=7
 
 DESCRIPTION="A fast and easy-to-use status bar"
 HOMEPAGE="https://github.com/jaagr/polybar"
