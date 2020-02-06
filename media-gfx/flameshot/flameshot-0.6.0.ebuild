@@ -3,7 +3,7 @@
 
 EAPI=7
 
-inherit qmake-utils toolchain-funcs versionator
+inherit qmake-utils toolchain-funcs
 
 DESCRIPTION="Powerful yet simple to use screenshot software for GNU/Linux"
 HOMEPAGE="http://github.com/lupoDharkael/flameshot"
@@ -32,7 +32,7 @@ DEPEND="
 RDEPEND="${DEPEND}"
 
 pkg_pretend(){
-	if tc-is-gcc && ! version_is_at_least 4.9.2 "$(gcc-version)" ;then
+	if tc-is-gcc && ver_test "$(gcc-version)" -lt 4.9.2 ;then
 		die "You need at least GCC 4.9.2 to build this package"
 	fi
 }
