@@ -5,7 +5,7 @@ EAPI=7
 
 DESCRIPTION="markdown editor"
 HOMEPAGE="https://typora.io"
-SRC_URI="https://typora.io/linux/Typora-linux-x64.tar.gz"
+SRC_URI="https://typora.io/linux/Typora-linux-x64.tar.gz -> typora-${PV}-linux-x64.tar.gz"
 
 LICENSE="EULA"
 SLOT="0"
