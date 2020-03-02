@@ -5,7 +5,7 @@
 
 EAPI=7
 
-inherit eutils toolchain-funcs versionator
+inherit eutils toolchain-funcs
 if [[ 9999 == $PV ]]; then
 	inherit git-r3
 else
@@ -28,7 +28,7 @@ DEPEND="${LIBDEPEND}"
 RDEPEND="${LIBDEPEND}"
 
 pkg_pretend() {
-	if ! version_is_at_least 4.7 $(gcc-version); then
+	if ! ver_test $(gcc-version) -gt 4.7; then
 		eerror "${PN} passes -std=c++11 to \${CXX} and requires a version"
 		eerror "of gcc newer than 4.7.0"
 	fi
