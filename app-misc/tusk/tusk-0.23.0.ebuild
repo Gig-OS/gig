@@ -3,7 +3,7 @@
 
 EAPI=7
 
-inherit unpacker gnome2-utils xdg-utils
+inherit unpacker desktop gnome2-utils xdg-utils
 
 DESCRIPTION="Refined Evernote desktop app"
 HOMEPAGE="https://klauscfhq.github.io/tusk"
@@ -29,25 +29,23 @@ RDEPEND="
 QA_PREBUILT="
 		opt/Tusk/libffmpeg.so
 		opt/Tusk/libnode.so
-		opt/Tusk/tusk-app"
+		opt/Tusk/libEGL.so
+		opt/Tusk/libGLESv2.so
+		opt/Tusk/tusk"
 
 src_unpack() {
 	unpack_deb "${A}"
 }
 
 src_install() {
-	domenu "${S}/usr/share/applications/tusk-app.desktop"
+	domenu ${S}/usr/share/applications/tusk.desktop
 
-	for size in 16 24 32 48 64 96 128 256 512; do
-		doicon -s ${size} "${S}/usr/share/icons/hicolor/${size}x${size}/apps/tusk-app.png"
-	done
-
-	dodoc usr/share/doc/tusk-app/changelog.gz
+	doicon  ${S}/usr/share/icons/hicolor/0x0/apps/tusk.png
 
 	insinto /
 	doins -r opt
-	fperms +x /opt/Tusk/${PN}-app
-	dosym /opt/Tusk/${PN}-app /opt/bin/${PN}-app
+	fperms +x /opt/Tusk/tusk
+	dosym /opt/Tusk/tusk /opt/bin/tusk
 }
 
 pkg_postinst() {
