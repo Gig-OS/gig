@@ -35,9 +35,9 @@ src_install(){
 	dodoc -r examples
 
 	if [[ $PV == 9999 ]] ; then
-		systemd_douserunit system/betterlockscreen@.service
+		systemd_dounit system/betterlockscreen@.service
 	else
-		systemd_douserunit betterlockscreen@.service
+		systemd_dounit betterlockscreen@.service
 	fi
 }
 
