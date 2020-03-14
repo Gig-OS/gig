@@ -47,11 +47,3 @@ src_install() {
 	fperms +x /opt/IRCCloud/irccloud
 	dosym ../IRCCloud/irccloud /opt/bin/irccloud
 }
-
-pkg_postinst() {
-	xdg_pkg_postinst
-}
-
-pkg_postrm() {
-	xdg_pkg_postrm
-}
