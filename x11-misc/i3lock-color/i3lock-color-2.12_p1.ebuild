@@ -3,13 +3,13 @@
 
 EAPI=7
 
-inherit git-r3
+MY_PV="${PV//_p1/.c.1}"
 
 DESCRIPTION="Improved i3lock with color customization"
 HOMEPAGE="https://github.com/Raymo111/i3lock-color"
+SRC_URI="https://github.com/Raymo111/i3lock-color/archive/${MY_PV}.tar.gz -> ${P}.tar.gz"
 
-EGIT_REPO_URI="${HOMEPAGE}"
-KEYWORDS=""
+KEYWORDS="~amd64"
 
 LICENSE="i3lock-color"
 SLOT="0"
@@ -32,6 +32,8 @@ DEPEND="
 	virtual/pkgconfig
 "
 
+S="${WORKDIR}/${PN}-${MY_PV}"
+
 src_configure() {
 	autoreconf -fiv
 	econf
@@ -39,6 +41,6 @@ src_configure() {
 
 pkg_postinst() {
 	elog "Running i3lock-color:"
-	elog "Simply invoke the 'i3lock' command. To get out of it, enter your password and press enter."
-	elog "More imformation please check https://github.com/Raymo111/i3lock-color#running-i3lock-color"
+	elog "	Simply invoke the 'i3lock' command. To get out of it, enter your password and press enter."
+	elog "	More imformation please check https://github.com/Raymo111/i3lock-color#running-i3lock-color"
 }
