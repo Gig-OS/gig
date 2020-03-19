@@ -23,7 +23,7 @@ RDEPEND="
 	x11-libs/libxkbcommon
 	sys-libs/pam
 	dev-libs/libev
-	media-libs/fontconfig
+	media-libs/fontconfig:=
 	media-libs/libjpeg-turbo
 "
 
