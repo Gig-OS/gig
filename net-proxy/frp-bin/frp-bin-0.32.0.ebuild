@@ -39,6 +39,5 @@ src_install() {
 
 	newinitd "${FILESDIR}/frps.initd" frps
 	newinitd "${FILESDIR}/frpc.initd" frpc
-	systemd_dounit ${FILESDIR}/frps.service
-	systemd_dounit ${FILESDIR}/frpc.service
+	systemd_dounit systemd/*.service
 }
