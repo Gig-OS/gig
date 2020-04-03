@@ -13,7 +13,7 @@ KEYWORDS="~amd64 ~x86"
 IUSE=""
 
 DEPEND="
-	>=games-strategy/0ad-0.0.23b
+	>=games-strategy/0ad-0.0.23b_alpha
 "
 RDEPEND="${DEPEND}"
 BDEPEND=""
