@@ -22,6 +22,7 @@ DEPEND="
 	x11-libs/libXScrnSaver
 	x11-libs/libXtst
 	x11-misc/xdg-utils
+	net-print/cups
 	>=app-accessibility/at-spi2-core-2.0.0
 "
 RDEPEND="${DEPEND}"
