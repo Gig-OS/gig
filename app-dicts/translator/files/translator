@@ -1,1 +1,2 @@
-python translator.py
+#!/bin/bash
+python /usr/share/translator/translator.py

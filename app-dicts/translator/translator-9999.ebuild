@@ -23,7 +23,8 @@ src_compile() {
 }
 
 src_install() {
-	dobin translator.py
+	insinto /usr/share/${PN}/
+	doins translator.py
 	dobin "${FILESDIR}"/translator
 	default
 }
