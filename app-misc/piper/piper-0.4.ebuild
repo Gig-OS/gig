@@ -5,7 +5,7 @@ EAPI=7
 
 PYTHON_COMPAT=( python3_7 )
 
-inherit meson python-single-r1
+inherit meson python-single-r1 xdg
 
 DESCRIPTION="GTK application to configure gaming devices"
 HOMEPAGE="https://github.com/libratbag/piper"
