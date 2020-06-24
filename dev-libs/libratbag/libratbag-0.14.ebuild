@@ -73,3 +73,11 @@ src_install() {
 	python_optimize
 	python_fix_shebang "${ED}"/usr/bin/
 }
+
+pkg_postinst() {
+	elog 'Running ratbagd as DBus-activated systemd service:'
+	elog 'sudo systemctl daemon-reload'
+	elog 'sudo systemctl reload dbus.service'
+	elog 'sudo systemctl enable ratbagd.service'
+	elog 'sudo systemctl start ratbagd.service'
+}
