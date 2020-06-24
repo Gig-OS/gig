@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>silencly07@gmail.com</email>
+		<name>Petrus.Z</name>
+	</maintainer>
+	<use>
+		<flag name="sddm">Enable support for SDDM</flag>
+		<flag name="lightdm">Enable support for LightDM</flag>
+		<flag name="gdm">Enable support for GDM</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">Askannz/optimus-manager</remote-id>
+	</upstream>
+</pkgmetadata>
