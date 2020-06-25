@@ -46,7 +46,6 @@ src_install() {
 	doins modules/${PN}.conf
 	insinto /var/lib/${PN}
 	doins var/*
-	dobin scripts/*
 	insinto /etc/${PN}
 	doins config/*
 	if use sddm; then
