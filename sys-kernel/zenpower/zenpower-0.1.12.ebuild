@@ -23,7 +23,7 @@ MODULE_NAMES="zenpower(drivers/hwmon:${S})"
 
 src_install() {
 	insinto /etc/modules-load.d
-	newins "${FILESDIR}"/zenpower.conf
+	doins "${FILESDIR}"/zenpower.conf
 
 	linux-mod_src_install
 }
