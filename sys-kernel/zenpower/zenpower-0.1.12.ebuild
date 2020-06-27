@@ -22,8 +22,8 @@ BUILD_TARGETS="modules"
 MODULE_NAMES="zenpower(drivers/hwmon:${S})"
 
 src_install() {
-	insinto /etc/modprobe.d
-	newins "${FILESDIR}"/zenpower.modprobe zenpower.conf
+	insinto /etc/modules-load.d
+	newins "${FILESDIR}"/zenpower.conf
 
 	linux-mod_src_install
 }
