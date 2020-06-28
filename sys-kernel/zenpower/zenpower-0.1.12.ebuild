@@ -19,8 +19,4 @@ RDEPEND="${DEPEND}"
 BDEPEND=""
 
 BUILD_TARGETS="modules"
-MODULE_NAMES="zenpower(drivers/hwmon:${S})"
-
-src_install() {
-	linux-mod_src_install
-}
+MODULE_NAMES="zenpower(kernel/drivers/hwmon:${S})"
