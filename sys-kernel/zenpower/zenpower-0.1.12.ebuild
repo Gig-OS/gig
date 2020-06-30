@@ -3,9 +3,9 @@
 
 EAPI=7
 
-inherit linux-mod
+inherit linux-info linux-mod
 
-DESCRIPTION="Zenpower is Linux kernel driver for reading temperature for AMD Zen family CPUs"
+DESCRIPTION="Linux kernel driver for reading sensors of AMD Zen family CPUs"
 HOMEPAGE="https://github.com/ocerman/zenpower"
 SRC_URI="https://github.com/ocerman/zenpower/archive/v${PV}.tar.gz -> ${P}.tar.gz"
 
@@ -17,6 +17,8 @@ IUSE=""
 DEPEND=""
 RDEPEND="${DEPEND}"
 BDEPEND=""
+
+CONFIG_CHECK="HWMON PCI AMD_NB"
 
 BUILD_TARGETS="modules"
 MODULE_NAMES="zenpower(kernel/drivers/hwmon:${S})"
