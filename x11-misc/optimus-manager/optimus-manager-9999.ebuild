@@ -37,6 +37,13 @@ RDEPEND="
 	"
 BDEPEND="${PYTHON_DEPS}"
 
+src_prepare() {
+	sed -i "s#/sbin#/usr/bin#g" ${S}/login_managers/sddm/20-${PN}.conf || die
+	sed -i "s#/sbin#/usr/bin#g" ${S}/login_managers/lightdm/20-${PN}.conf || die
+
+	distutils-r1_src_prepare
+}
+
 src_install() {
 	systemd_dounit systemd/${PN}.service
 	insinto /usr/$(get_libdir)/systemd/logind.conf.d
@@ -44,21 +51,31 @@ src_install() {
 
 	insinto /lib/modprobe.d
 	doins modules/${PN}.conf
+
 	insinto /var/lib/${PN}
 	doins var/*
+
 	insinto /etc/${PN}
 	doins config/*
+	fperms +x /etc/${PN}/nvidia-enable.sh
+	fperms +x /etc/${PN}/nvidia-disable.sh
+	fperms +x /etc/${PN}/xsetup-hybrid.sh
+	fperms +x /etc/${PN}/xsetup-intel.sh
+	fperms +x /etc/${PN}/xsetup-nvidia.sh
+
 	if use sddm; then
 		insinto /etc/sddm.conf.d
 		doins login_managers/sddm/20-${PN}.conf
 	fi
 	if use lightdm; then
-		insinto /etc/lightdm.conf.d
+		insinto /etc/lightdm/lightdm.conf.d
 		doins login_managers/lightdm/20-${PN}.conf
 	fi
+
 	insinto /usr/share
 	doins ${PN}.conf
 	newinitd "${FILESDIR}"/"${PN}".sh ${PN}
+
 	distutils-r1_src_install
 }
 
