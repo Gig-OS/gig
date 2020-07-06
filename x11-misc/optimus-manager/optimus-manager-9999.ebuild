@@ -3,7 +3,8 @@
 
 EAPI=7
 
-PYTHON_COMPAT=( python3_{7,8} )
+PYTHON_COMPAT=( python3_{7,8,9} )
+DISTUTILS_USE_SETUPTOOLS=rdepend
 
 inherit distutils-r1 systemd
 
@@ -24,7 +25,6 @@ SLOT="0"
 IUSE="gdm lightdm sddm"
 
 DEPEND="
-	dev-python/setuptools[${PYTHON_USEDEP}]
 	dev-python/dbus-python[${PYTHON_USEDEP}]
 	x11-apps/xrandr
 	x11-apps/mesa-progs
@@ -41,7 +41,7 @@ src_prepare() {
 	sed -i "s#/sbin#/usr/bin#g" ${S}/login_managers/sddm/20-${PN}.conf || die
 	sed -i "s#/sbin#/usr/bin#g" ${S}/login_managers/lightdm/20-${PN}.conf || die
 
-	distutils-r1_src_prepare
+	default
 }
 
 src_install() {
@@ -57,11 +57,12 @@ src_install() {
 
 	insinto /etc/${PN}
 	doins config/*
-	fperms +x /etc/${PN}/nvidia-enable.sh
-	fperms +x /etc/${PN}/nvidia-disable.sh
-	fperms +x /etc/${PN}/xsetup-hybrid.sh
-	fperms +x /etc/${PN}/xsetup-intel.sh
-	fperms +x /etc/${PN}/xsetup-nvidia.sh
+	fperms +x /etc/${PN}/*.sh
+	# fperms +x /etc/${PN}/nvidia-enable.sh
+	# fperms +x /etc/${PN}/nvidia-disable.sh
+	# fperms +x /etc/${PN}/xsetup-hybrid.sh
+	# fperms +x /etc/${PN}/xsetup-intel.sh
+	# fperms +x /etc/${PN}/xsetup-nvidia.sh
 
 	if use sddm; then
 		insinto /etc/sddm.conf.d
