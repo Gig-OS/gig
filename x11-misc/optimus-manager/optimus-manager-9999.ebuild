@@ -57,12 +57,12 @@ src_install() {
 
 	insinto /etc/${PN}
 	doins config/*
-	fperms +x /etc/${PN}/*.sh
-	# fperms +x /etc/${PN}/nvidia-enable.sh
-	# fperms +x /etc/${PN}/nvidia-disable.sh
-	# fperms +x /etc/${PN}/xsetup-hybrid.sh
-	# fperms +x /etc/${PN}/xsetup-intel.sh
-	# fperms +x /etc/${PN}/xsetup-nvidia.sh
+	# fperms +x /etc/${PN}/*.sh
+	fperms +x /etc/${PN}/nvidia-enable.sh
+	fperms +x /etc/${PN}/nvidia-disable.sh
+	fperms +x /etc/${PN}/xsetup-hybrid.sh
+	fperms +x /etc/${PN}/xsetup-intel.sh
+	fperms +x /etc/${PN}/xsetup-nvidia.sh
 
 	if use sddm; then
 		insinto /etc/sddm.conf.d
