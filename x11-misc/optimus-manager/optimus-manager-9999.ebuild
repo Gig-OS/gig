@@ -14,7 +14,6 @@ HOMEPAGE="https://github.com/Askannz/optimus-manager"
 if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
 	EGIT_REPO_URI="${HOMEPAGE}"
-	EGIT_BRANCH="amd_support"
 else
 	SRC_URI="${HOMEPAGE}/archive/v${PV}.tar.gz -> ${P}.tar.gz"
 	KEYWORDS="~amd64 ~x86"
@@ -26,6 +25,7 @@ IUSE="gdm lightdm sddm"
 
 DEPEND="
 	dev-python/dbus-python[${PYTHON_USEDEP}]
+	dev-python/py3nvml[${PYTHON_USEDEP}]
 	x11-apps/xrandr
 	x11-apps/mesa-progs
 "
