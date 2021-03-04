@@ -8,7 +8,6 @@
 	<use>
 		<flag name="sddm">Enable support for SDDM</flag>
 		<flag name="lightdm">Enable support for LightDM</flag>
-		<flag name="gdm">Enable support for GDM</flag>
 	</use>
 	<upstream>
 		<remote-id type="github">Askannz/optimus-manager</remote-id>
