@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>silencly07@gmail.com</email>
+		<name>Petrus.Z</name>
+	</maintainer>
+	<use>
+		<flag name="plasma">Enable support for plasma</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">Shatur95/optimus-manager-qt</remote-id>
+	</upstream>
+</pkgmetadata>
