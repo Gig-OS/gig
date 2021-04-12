@@ -47,6 +47,11 @@ src_unpack() {
 	EGIT_COMMIT=$(grep  -A 2 'FetchContent_Declare(CircleFlags' ${S}/cmake/ExternalLibraries.cmake  | grep GIT_TAG | awk -F ' ' '{print $2F}')
 	git-r3_fetch ${EGIT_REPO_URI}
 	git-r3_checkout ${EGIT_REPO_URI} "${S}"/_deps/circleflags-src
+
+	EGIT_REPO_URI=$(grep  -A 1 'FetchContent_Declare(Masalla' ${S}/cmake/ExternalLibraries.cmake | grep GIT_REPOSITORY | awk -F ' ' '{print $2F}')
+	EGIT_COMMIT=$(grep  -A 2 'FetchContent_Declare(Masalla' ${S}/cmake/ExternalLibraries.cmake  | grep GIT_TAG | awk -F ' ' '{print $2F}')
+	git-r3_fetch ${EGIT_REPO_URI}
+	git-r3_checkout ${EGIT_REPO_URI} "${S}"/_deps/masalla-src
 }
 
 src_configure() {
@@ -55,11 +60,13 @@ src_configure() {
 			-DWITH_PLASMA=ON
 			-DFETCHCONTENT_SOURCE_DIR_SINGLEAPPLICATION=../${P}/_deps/singleapplication-src
 			-DFETCHCONTENT_SOURCE_DIR_CIRCLEFLAGS=../${P}/_deps/circleflags-src
+			-DFETCHCONTENT_SOURCE_DIR_MASALLA=../${P}/_deps/masalla-src
 		)
 	else
 		local mycmakeargs=(
 			-DFETCHCONTENT_SOURCE_DIR_SINGLEAPPLICATION=../${P}/_deps/singleapplication-src
 			-DFETCHCONTENT_SOURCE_DIR_CIRCLEFLAGS=../${P}/_deps/circleflags-src
+			-DFETCHCONTENT_SOURCE_DIR_MASALLA=../${P}/_deps/masalla-src
 		)
 
 	fi
