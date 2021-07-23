@@ -28,7 +28,7 @@ REQUIRED_USE="${PYTHON_REQUIRED_USE}"
 DEPEND=""
 BDEPEND=""
 RDEPEND="${DEPEND}
-	sys-apps/cockpit
+	app-admin/cockpit
 	sys-block/fio
 	${PYTHON_DEPS}
 "

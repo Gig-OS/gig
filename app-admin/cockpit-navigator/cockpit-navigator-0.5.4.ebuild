@@ -28,7 +28,7 @@ REQUIRED_USE="${PYTHON_REQUIRED_USE}"
 DEPEND=""
 BDEPEND=""
 RDEPEND="${DEPEND}
-	sys-apps/cockpit
+	app-admin/cockpit
 	net-misc/rsync
 	app-arch/zip
 	${PYTHON_DEPS}

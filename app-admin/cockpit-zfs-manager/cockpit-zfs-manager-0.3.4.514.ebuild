@@ -22,7 +22,7 @@ SLOT="0"
 DEPEND=""
 BDEPEND=""
 RDEPEND="${DEPEND}
-	>=sys-apps/cockpit-201
+	>=app-admin/cockpit-201
 	>=sys-fs/zfs-0.8
 "
 
