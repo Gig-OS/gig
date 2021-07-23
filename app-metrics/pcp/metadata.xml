@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>silencly07@gmail.com</email>
+		<name>Petrus.Z</name>
+	</maintainer>
+	<upstream>
+		<remote-id type="github">performancecopilot/pcp</remote-id>
+	</upstream>
+	<use>
+		<flag name="ssp"> Enable gcc stack-protector</flag>
+		<flag name="pie"> Build position-independent-executable</flag>
+		<flag name="infiniband"> Support for inifiniband metrics</flag>
+		<flag name="discovery"> Support for service discovery</flag>
+		<flag name="systemd"> Support for systemd services</flag>
+		<flag name="perfevent"> Perfevent pmda</flag>
+		<flag name="doc"> Enable building of the PCP books</flag>
+	</use>
+</pkgmetadata>

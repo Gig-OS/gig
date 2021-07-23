@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>silencly07@gmail.com</email>
+		<name>Petrus.Z</name>
+	</maintainer>
+	<upstream>
+		<remote-id type="github">cockpit-project/cockpit</remote-id>
+	</upstream>
+	<use>
+		<flag name="firewalld">Firewall support</flag>
+		<flag name="pcp">Uses the Performance Co-Pilot framework to gather metrics data about the system</flag>
+		<flag name="tuned">Use Tuned set system performance profiles</flag>
+		<flag name="debug">Enables debug information</flag>
+	</use>
+</pkgmetadata>
