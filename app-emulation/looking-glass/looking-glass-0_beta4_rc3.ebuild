@@ -8,7 +8,7 @@ MY_PV="${PV//0_beta/B}"
 MY_PV="${MY_PV//_rc/-rc}"
 MY_P="${MY_PN}-${MY_PV}"
 
-inherit cmake git-r3
+inherit cmake git-r3 desktop
 
 DESCRIPTION="A low latency KVM FrameRelay implementation for guests with VGA PCI Passthrough"
 HOMEPAGE="https://looking-glass.hostfission.com
@@ -64,4 +64,6 @@ src_install() {
 	einstalldocs
 
 	dobin "${BUILD_DIR}"/looking-glass-client
+
+	domenu	"${FILESDIR}"/looking-glass.desktop
 }

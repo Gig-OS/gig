@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Looking glass
+Comment=A low latency KVM FrameRelay implementation for guests with VGA PCI Passthrough
+Exec=looking-glass-client
+Terminal=false
+Type=Application
+Categories=System;
