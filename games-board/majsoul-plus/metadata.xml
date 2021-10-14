@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>silencly07@gmail.com</email>
+		<name>Petrus.Z</name>
+	</maintainer>
+	<use>
+		<flag name="xdg">Open URLs with desktop's default</flag>
+		<flag name="file-deletion">Enable file deletion support</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">MajsoulPlus/majsoul-plus</remote-id>
+	</upstream>
+</pkgmetadata>

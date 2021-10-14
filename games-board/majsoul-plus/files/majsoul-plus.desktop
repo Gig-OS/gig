@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Majsoul Plus
+Name[zh_CN]=雀魂 Plus
+GenericName=Majsoul Plus
+GenericName[zh_CN]=雀魂 Plus
+Comment=Majsoul Plus Browser
+Comment[zh_CN]=一款设计用于雀魂麻将的 PC 专用浏览器
+Exec=/opt/majsoul-plus/majsoul-plus
+Terminal=false
+Type=Application
+Icon=majsoul-plus
+Categories=Game;
