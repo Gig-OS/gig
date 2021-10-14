@@ -46,9 +46,9 @@ S="${WORKDIR}/${MY_P}"
 src_unpack() {
 	unpack ${MY_P}.tar.gz
 	if use amd64 ; then
-		mv "${WORKDIR}"/Majsoul_Plus-2.0.1-linux-x64 "${WORKDIR}"/Majsoul_Plus-2.0.1
+		mv "${WORKDIR}"/"${MY_P}"-linux-x64 "${WORKDIR}"/"${MY_P}"
 	elif use x86 ; then
-		mv "${WORKDIR}"/Majsoul_Plus-2.0.1-linux-ia32 "${WORKDIR}"/Majsoul_Plus-2.0.1
+		mv "${WORKDIR}"/"${MY_P}"-linux-ia32 "${WORKDIR}"/"${MY_P}"
 	fi
 }
 
