@@ -7,7 +7,7 @@ inherit git-r3 xdg cmake
 
 DESCRIPTION="Qt-based interface for Optimus Manager"
 HOMEPAGE="https://github.com/Shatur95/optimus-manager-qt"
-SRC_URI="${HOMEPAGE}/archive/${PV}.tar.gz -> ${P}.tar.gz"
+SRC_URI="https://github.com/Shatur95/optimus-manager-qt/archive/${PV}.tar.gz -> ${P}.tar.gz"
 KEYWORDS="~amd64 ~x86"
 
 LICENSE="GPL-3"
