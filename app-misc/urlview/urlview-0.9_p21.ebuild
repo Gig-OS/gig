@@ -3,7 +3,7 @@
 
 EAPI=7
 
-inherit autotools
+inherit eutils autotools
 
 MY_PV="${PV/_p*/}"
 MY_PATCHLEVEL="${PV/*_p/}"
