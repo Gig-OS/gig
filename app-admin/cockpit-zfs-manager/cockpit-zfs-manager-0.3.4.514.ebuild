@@ -5,19 +5,11 @@ EAPI=8
 
 DESCRIPTION="Cockpit ZFS Manager is an interactive ZFS on Linux admin package for Cockpit."
 HOMEPAGE="https://github.com/optimans/cockpit-zfs-manager"
-
-if [[ ${PV} == 9999* ]] ; then
-	inherit git-r3
-	EGIT_REPO_URI="${HOMEPAGE}"
-	KEYWORDS=""
-	SRC_URI=""
-else
-	KEYWORDS="~amd64"
-	SRC_URI="${HOMEPAGE}/archive/refs/tags/${PV}.tar.gz -> ${P}.tar.gz"
-fi
+SRC_URI="https://github.com/optimans/cockpit-zfs-manager/archive/refs/tags/${PV}.tar.gz -> ${P}.tar.gz"
 
 LICENSE="LGPL-3"
 SLOT="0"
+KEYWORDS="~amd64"
 
 DEPEND=""
 BDEPEND=""
