@@ -10,17 +10,10 @@ inherit python-single-r1
 DESCRIPTION="A Cockpit plugin to easily manage samba and NFS file sharing."
 HOMEPAGE="https://github.com/45Drives/cockpit-file-sharing"
 
-if [[ ${PV} == 9999* ]] ; then
-	inherit git-r3
-	EGIT_REPO_URI="${HOMEPAGE}"
-	KEYWORDS=""
-	SRC_URI=""
-else
-	KEYWORDS="~amd64"
-	SRC_URI="${HOMEPAGE}/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
-fi
+SRC_URI="https://github.com/45Drives/cockpit-file-sharing/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
 
 LICENSE="GPL-3"
+KEYWORDS="~amd64"
 SLOT="0"
 
 REQUIRED_USE="${PYTHON_REQUIRED_USE}"
