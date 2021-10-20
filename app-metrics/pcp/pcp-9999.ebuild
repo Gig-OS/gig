@@ -2,24 +2,18 @@
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
+
 PYTHON_COMPAT=(python3_{7..10})
-inherit systemd distutils-r1
+
+inherit systemd distutils-r1 git-r3
 
 DESCRIPTION="Performance Co-Pilot, system performance and analysis framework"
 HOMEPAGE="http://pcp.io"
-
-if [[ ${PV} == 9999* ]] ; then
-	inherit git-r3
-	EGIT_REPO_URI="https://github.com/performancecopilot/pcp.git"
-	KEYWORDS=""
-	SRC_URI=""
-else
-	KEYWORDS="~amd64 ~x86"
-	SRC_URI="https://github.com/performancecopilot/${PN}/archive/${PV}.tar.gz -> ${P}.tar.gz"
-fi
+EGIT_REPO_URI="https://github.com/performancecopilot/pcp.git"
 
 LICENSE="LGPL-2.1+"
 SLOT="0"
+KEYWORDS=""
 IUSE="activemq bind discovery doc infiniband influxdb json libvirt mysql nginx nutcracker perfevent +pie podman postgresql qt5 selinux snmp +ssp systemd +threads X xls"
 DOC="CHANGELOG README.md INSTALL.md"
 
