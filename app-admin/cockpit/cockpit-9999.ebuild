@@ -3,15 +3,15 @@
 
 EAPI=7
 
-inherit autotools eutils pam systemd
+inherit autotools eutils pam systemd git-r3
 
 DESCRIPTION="Server Administration Web Interface "
 HOMEPAGE="http://cockpit-project.org/"
-SRC_URI="https://github.com/cockpit-project/${PN}/releases/download/${PV}/${P}.tar.xz"
+EGIT_REPO_URI="https://github.com/cockpit-project/cockpit.git"
 
 LICENSE="LGPL-2.1+"
 SLOT="0"
-KEYWORDS="~amd64"
+KEYWORDS=""
 IUSE="debug doc firewalld +networkmanager pcp selinux udisks tuned"
 
 BDEPEND="
