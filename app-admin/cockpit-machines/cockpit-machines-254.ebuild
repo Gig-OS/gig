@@ -16,7 +16,7 @@ if [[ ${PV} == 9999* ]] ; then
 	KEYWORDS=""
 	SRC_URI=""
 else
-	KEYWORDS="~amd64 ~x86"
+	KEYWORDS="~amd64"
 	SRC_URI="https://github.com/cockpit-project/${PN}/releases/download/${PV}/${P}.tar.xz"
 fi
 
