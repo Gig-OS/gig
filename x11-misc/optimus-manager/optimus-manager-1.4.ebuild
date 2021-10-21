@@ -21,7 +21,6 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-IUSE="lightdm sddm"
 
 DEPEND="
 	dev-python/dbus-python[${PYTHON_USEDEP}]
@@ -30,8 +29,6 @@ DEPEND="
 "
 RDEPEND="
 	${DEPEND}
-	lightdm? ( x11-misc/lightdm )
-	sddm? ( x11-misc/sddm )
 	"
 BDEPEND="${PYTHON_DEPS}"
 
@@ -64,14 +61,10 @@ src_install() {
 	fperms 755 /etc/"${PN}"/{nvidia-enable.sh,nvidia-disable.sh,xsetup-hybrid.sh,xsetup-integrated.sh,,xsetup-nvidia.sh}
 
 	# login managers
-	if use sddm; then
-		insinto /etc/sddm.conf.d
-		doins login_managers/sddm/20-${PN}.conf
-	fi
-	if use lightdm; then
-		insinto /etc/lightdm/lightdm.conf.d
-		doins login_managers/lightdm/20-${PN}.conf
-	fi
+	insinto /etc/sddm.conf.d
+	doins login_managers/sddm/20-${PN}.conf
+	insinto /etc/lightdm/lightdm.conf.d
+	doins login_managers/lightdm/20-${PN}.conf
 
 	# misc
 	insinto /usr/share
@@ -89,15 +82,16 @@ pkg_postinst() {
 	echo
 	elog "Default configuration can be found and /usr/share/${PN}.conf. Please do not edit it."
 	elog "Use /etc/${PN}/${PN}.conf instead (if doesn't exist, create it)."
+	elog
 	elog "Also you can add options in /etc/${PN}/xorg-intel.conf and /etc/${PN}/xorg-nvidia.conf"
 	elog "If you're using KDE Plasma or LXQt, you may require the optimus-manager-qt package."
 	elog "If you're using Gnome, you can install the optimus-manager-argos Gnome Shell extension."
 	ewarn "Only works with Xorg. Wayland is not supported yet."
-	if use !sddm && use !lightdm; then
-		elog "As you are not using support for SDDM or LightDM, you can set it manually."
-		elog "More info can be found at:"
-		elog "https://github.com/Askannz/optimus-manager/wiki/FAQ,-common-issues,-troubleshooting#my-display-manager-is-not-sddm-lightdm-nor-sddm"
-	fi
+	echo
+	elog "If you are not using SDDM or LightDM, you need set it manually."
+	elog "More info can be found at:"
+	elog "https://github.com/Askannz/optimus-manager/wiki/FAQ,-common-issues,-troubleshooting#my-display-manager-is-not-sddm-lightdm-nor-sddm"
+	echo
 	ewarn "If you have installed bumblebee package, you need to disable the bumblebee daemon since both packages are trying to"
 	ewarn "control the GPU power switching."
 	echo
