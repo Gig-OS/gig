@@ -24,6 +24,7 @@ SLOT="0"
 
 DEPEND="
 	dev-python/dbus-python[${PYTHON_USEDEP}]
+	sys-apps/pciutils
 	x11-apps/xrandr
 	x11-apps/mesa-progs
 "
