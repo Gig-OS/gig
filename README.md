@@ -54,6 +54,8 @@ layman -a gig
  app-emulation/looking-glass       | 0_beta4     |        | https://looking-glass.hostfission.com                   | A low latency KVM FrameRelay implementation for guests with VGA PCI Passthrough
                                    | 0_beta4_rc3 |        |                                                         |
 -----------------------------------|-------------|--------|---------------------------------------------------------|--------------------
+ app-misc/notion-app-enhanced      | 2.0.16.5    |        | https://github.com/notion-enhancer/notion-repackaged    | Notion Desktop builds with Notion Enhancer for Windows, MacOS and Linux
+-----------------------------------|-------------|--------|---------------------------------------------------------|--------------------
  app-misc/tusk                     | 0.23.0      |        | https://klauscfhq.github.io/tusk                        | Refined Evernote desktop app
 -----------------------------------|-------------|--------|---------------------------------------------------------|--------------------
  app-misc/urlview                  | 0.9_p21     |        | https://packages.qa.debian.org/u/urlview.html           | A curses URL parser for text files
