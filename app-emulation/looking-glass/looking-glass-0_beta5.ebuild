@@ -24,13 +24,12 @@ RDEPEND="dev-libs/libconfig:0=
 	dev-libs/nettle:=[gmp]
 	media-libs/freetype:2
 	media-libs/fontconfig:1.0
-	media-libs/libsdl2:=[gles2]
-	media-libs/sdl2-ttf
 	virtual/glu
 	X? (
 		x11-libs/libX11
 		x11-libs/libXfixes
 		x11-libs/libXi
+		x11-libs/libXpresent
 		x11-libs/libXScrnSaver
 	)
 	wayland? (
