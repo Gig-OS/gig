@@ -10,7 +10,7 @@ inherit python-single-r1
 DESCRIPTION="A Storage Benchmark Utility for Cockpit."
 HOMEPAGE="https://github.com/45Drives/cockpit-benchmark"
 
-SRC_URI="https://github.com/45Drives/cockpit-benchmar/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
+SRC_URI="https://github.com/45Drives/cockpit-benchmark/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
 
 LICENSE="GPL-3"
 SLOT="0"
