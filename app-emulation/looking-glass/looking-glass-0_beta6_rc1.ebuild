@@ -19,13 +19,15 @@ EGIT_COMMIT=${MY_PV}
 LICENSE="GPL-2"
 SLOT="0"
 KEYWORDS="~amd64 ~x86"
-IUSE="+X wayland debug"
+IUSE="+X wayland +pulseaudio pipewire debug"
 
 RDEPEND="dev-libs/libconfig:0=
 	dev-libs/nettle:=[gmp]
 	media-libs/freetype:2
 	media-libs/fontconfig:1.0
 	virtual/glu
+	pulseaudio? ( media-sound/pulseaudio )
+	pipewire? ( media-video/pipewire )
 	X? (
 		x11-libs/libX11
 		x11-libs/libXfixes
@@ -53,6 +55,18 @@ src_configure() {
 	if ! use wayland ; then
 		local mycmakeargs+=(
 			-DENABLE_WAYLAND=no
+		)
+	fi
+
+	if ! use pulseaudio ; then
+		local mycmakeargs+=(
+			-DENABLE_PULSEAUDIO=no
+		)
+	fi
+
+	if ! use pipewire ; then
+		local mycmakeargs+=(
+			-DENABLE_PIPEWIRE=no
 		)
 	fi
 
