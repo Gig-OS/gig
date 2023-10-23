@@ -41,6 +41,7 @@ src_install() {
 	cp -ar "${S}/opt"  "${D}" || die "Install failed!"
 	cp -ar "${S}/usr"  "${D}" || die "Install failed!"
 
+	chgrp onepassword ${D}/opt/1Password/1Password-KeyringHelper
 	chgrp onepassword ${D}/opt/1Password/1Password-BrowserSupport
 
 	dosym /opt/1Password/1password /usr/bin/1password
@@ -48,8 +49,15 @@ src_install() {
 
 pkg_postinst() {
 	chmod 4755 /opt/1Password/chrome-sandbox
-	chmod 6755 /opt/1Password/1Password-KeyringHelper
-	chmod 2755 /opt/1Password/1Password-BrowserSupport
+	chmod u+s /opt/1Password/1Password-KeyringHelper
+	chmod g+s /opt/1Password/1Password-KeyringHelper
+	chmod g+s /opt/1Password/1Password-BrowserSupport
+
+	export POLICY_OWNERS
+	POLICY_OWNERS="$(cut -d: -f1,3 /etc/passwd | grep -E ':[0-9]{4}$' | cut -d: -f1 | head -n 10 | sed 's/^/unix-user:/' | tr '\n' ' ')"
+	eval "cat <<EOF
+$(cat /opt/1Password/com.1password.1Password.policy.tpl)
+EOF" > /usr/share/polkit-1/actions/com.1password.1Password.policy
 
 	xdg_icon_cache_update
 	xdg_desktop_database_update
