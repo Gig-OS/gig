@@ -10,23 +10,21 @@ HOMEPAGE="https://github.com/catsout/wallpaper-engine-kde-plugin"
 EGIT_REPO_URI="https://github.com/catsout/wallpaper-engine-kde-plugin.git"
 EGIT_COMMIT="v${PV}"
 
-LICENSE="MIT"
+LICENSE="GPL-2.0"
 SLOT="0"
 KEYWORDS="~amd64 ~x86"
 
 DEPEND="
-	dev-util/cmake
 	dev-util/vulkan-headers
 	kde-plasma/plasma-workspace
 	media-plugins/gst-plugins-libav
-	media-video/mpv
-	dev-lang/python
+	media-video/mpv[vulkan]
 	dev-python/websockets
 	dev-qt/qtdeclarative:5
 	dev-qt/qtwebsockets:5
 	dev-qt/qtwebchannel:5
 	app-arch/lz4
-	media-libs/mesa[vulkan,video_cards_radeonsi]
+	media-libs/mesa[vulkan]
 "
 
 RDEPEND="${DEPEND}"
