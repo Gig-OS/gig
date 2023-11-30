@@ -15,7 +15,7 @@ KEYWORDS="~amd64"
 
 DEPEND=""
 RDEPEND="${DEPEND}
-	net-libs/webkit-gtk
+	=net-libs/webkit-gtk-2.42.1-r410
 	x11-libs/gtk+:3
 	>=net-libs/libsoup-3.4.4
 "
