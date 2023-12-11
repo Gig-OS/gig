@@ -15,6 +15,9 @@ KEYWORDS="~amd64"
 
 DEPEND=""
 RDEPEND="${DEPEND}
+	!net-proxy/clash
+	!net-proxy/clash-meta
+	!net-proxy/clash-rs
 	=net-libs/webkit-gtk-2.42.1-r410
 	x11-libs/gtk+:3
 	>=net-libs/libsoup-3.4.4
@@ -46,4 +49,5 @@ src_install() {
 pkg_postinst() {
 	chmod u+s /usr/bin/clash
 	chmod u+s /usr/bin/clash-meta
+	chmod u+s /usr/bin/clash-rs
 }
