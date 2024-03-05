@@ -1,0 +1,12 @@
+[Unit]
+Description="CloudDrive"
+Wants=network-online.target
+After=network-online.target network.target
+
+[Service]
+Type=exec
+ExecStart=clouddrive
+
+[Install]
+WantedBy=multi-user.target
+DefaultInstance=default
