@@ -1,0 +1,88 @@
+From 7956b80bf89423d6a9853390d855d4a9aa05b96c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kai=20Wasserb=C3=A4ch?= <kai@dev.carbon-project.org>
+Date: Sat, 11 Feb 2023 18:10:08 +0100
+Subject: [PATCH 1/2] fix(FTBFS): gallivm: fix LLVM #include of Triple.h, moved
+ to TargetParser
+
+Upstream moved Triple.h from ADT to TargetParser in LLVM 17.
+
+Reference: https://github.com/llvm/llvm-project/commit/62c7f035b4392c1933550eead6ddab35122720bc
+Reviewed-by: Jesse Natalie <jenatali@microsoft.com>
+Reviewed-by: Karol Herbst <kherbst@redhat.com>
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/21262>
+---
+ src/gallium/auxiliary/gallivm/lp_bld_misc.cpp | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp b/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp
+index a79cbdf3baa6b..242168afd128a 100644
+--- a/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp
++++ b/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp
+@@ -56,7 +56,6 @@
+ #include <llvm-c/ExecutionEngine.h>
+ #include <llvm/Target/TargetOptions.h>
+ #include <llvm/ExecutionEngine/ExecutionEngine.h>
+-#include <llvm/ADT/Triple.h>
+ #include <llvm/Analysis/TargetLibraryInfo.h>
+ #include <llvm/ExecutionEngine/SectionMemoryManager.h>
+ #include <llvm/Support/CommandLine.h>
+@@ -67,6 +66,11 @@
+ #if LLVM_VERSION_MAJOR >= 15
+ #include <llvm/Support/MemoryBuffer.h>
+ #endif
++#if LLVM_VERSION_MAJOR >= 17
++#include <llvm/TargetParser/Triple.h>
++#else
++#include <llvm/ADT/Triple.h>
++#endif
+ 
+ #if LLVM_VERSION_MAJOR < 11
+ #include <llvm/IR/CallSite.h>
+-- 
+GitLab
+
+
+From efcb63938c195b765c530e6e6eff1d712bfc6e74 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kai=20Wasserb=C3=A4ch?= <kai@dev.carbon-project.org>
+Date: Sat, 11 Feb 2023 18:12:01 +0100
+Subject: [PATCH 2/2] fix(FTBFS): clover: fix LLVM #include of Triple.h, moved
+ to TargetParser
+
+Upstream moved Triple.h from ADT to TargetParser in LLVM 17.
+
+Reference: https://github.com/llvm/llvm-project/commit/62c7f035b4392c1933550eead6ddab35122720bc
+Reviewed-by: Jesse Natalie <jenatali@microsoft.com>
+Reviewed-by: Karol Herbst <kherbst@redhat.com>
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/21262>
+---
+ src/gallium/frontends/clover/llvm/compat.hpp | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/gallium/frontends/clover/llvm/compat.hpp b/src/gallium/frontends/clover/llvm/compat.hpp
+index 83e2fcd8d2fd4..7bcf3d6860b09 100644
+--- a/src/gallium/frontends/clover/llvm/compat.hpp
++++ b/src/gallium/frontends/clover/llvm/compat.hpp
+@@ -38,7 +38,6 @@
+ 
+ #include <llvm/Config/llvm-config.h>
+ 
+-#include <llvm/ADT/Triple.h>
+ #include <llvm/Analysis/TargetLibraryInfo.h>
+ #include <llvm/IR/LegacyPassManager.h>
+ #include <llvm/IR/LLVMContext.h>
+@@ -59,6 +58,12 @@
+ #include <llvm/Support/TargetRegistry.h>
+ #endif
+ 
++#if LLVM_VERSION_MAJOR >= 17
++#include <llvm/TargetParser/Triple.h>
++#else
++#include <llvm/ADT/Triple.h>
++#endif
++
+ namespace clover {
+    namespace llvm {
+       namespace compat {
+-- 
+GitLab
+

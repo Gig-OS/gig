@@ -1,0 +1,45 @@
+From e832d6a1bbe1ee96ad9fe1e385d3767e73b7f9fe Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kai=20Wasserb=C3=A4ch?= <kai@dev.carbon-project.org>
+Date: Sun, 5 Feb 2023 12:09:52 +0100
+Subject: [PATCH] fix: clover/llvm: replace llvm::None with std::nullopt for
+ LLVM 17+
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+llvm::None was deprecated and builds started failing with
+
+  error: ‘None’ is not a member of ‘llvm’
+
+Instead of using the temporarily available include in ADT which would
+add a deprecation warning to the build, directly replace llvm::None with
+the recommended std::nullopt
+
+This change takes only effect with LLVM 17 or newer.
+
+Reference: https://github.com/llvm/llvm-project/blob/d4f38ef288c3a4cf2318182c8585a5c7e760877a/llvm/include/llvm/ADT/None.h
+Reviewed-by: Karol Herbst <kherbst@redhat.com>
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/21125>
+---
+ src/gallium/frontends/clover/llvm/codegen/native.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/gallium/frontends/clover/llvm/codegen/native.cpp b/src/gallium/frontends/clover/llvm/codegen/native.cpp
+index 2c14ccb5fc302..9899bbe0af634 100644
+--- a/src/gallium/frontends/clover/llvm/codegen/native.cpp
++++ b/src/gallium/frontends/clover/llvm/codegen/native.cpp
+@@ -116,7 +116,11 @@ namespace {
+ 
+       std::unique_ptr<TargetMachine> tm {
+          t->createTargetMachine(target.triple, target.cpu, "", {},
++#if LLVM_VERSION_MAJOR >= 17
++                                std::nullopt, std::nullopt,
++#else
+                                 ::llvm::None, ::llvm::None,
++#endif
+                                 ::llvm::CodeGenOpt::Default) };
+       if (!tm)
+          fail(r_log, build_error(),
+-- 
+GitLab
+
