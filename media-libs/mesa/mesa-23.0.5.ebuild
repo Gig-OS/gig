@@ -11,7 +11,7 @@ MY_P="${P/_/-}"
 
 DESCRIPTION="OpenGL-like graphic library for Linux(Mali-G610 only)"
 HOMEPAGE="https://www.mesa3d.org/ https://mesa.freedesktop.org/"
-SRC_URI="https://ppa.launchpadcontent.net/liujianfeng1994/panfork-mesa/ubuntu/pool/main/m/mesa/mesa_23.0.5-0ubuntu1~panfork~git221210.120202c6757~j3.tar.xz"
+SRC_URI="https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu/pool/main/m/mesa/mesa_23.0.5-0ubuntu1~panfork~git221210.120202c6757~noble.tar.xz"
 KEYWORDS="~alpha amd64 ~arm arm64 ~hppa ~ia64 ~loong ~mips ~ppc ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
 
 LICENSE="MIT"
@@ -207,7 +207,6 @@ pkg_pretend() {
 		   ! use video_cards_r300 &&
 		   ! use video_cards_r600 &&
 		   ! use video_cards_radeonsi &&
-		   ! use video_cards_panfrost &&
 		   ! use video_cards_nouveau; then
 			ewarn "Ignoring USE=vdpau      since VIDEO_CARDS does not contain d3d12, r300, r600, radeonsi, or nouveau"
 		fi
@@ -300,7 +299,6 @@ multilib_src_configure() {
 	   use video_cards_r300 ||
 	   use video_cards_r600 ||
 	   use video_cards_radeonsi ||
-	   use video_cards_panfrost ||
 	   use video_cards_nouveau; then
 		emesonargs+=($(meson_feature vdpau gallium-vdpau))
 	else
@@ -391,6 +389,7 @@ multilib_src_configure() {
 		-Dgallium-drivers=$(driver_list "${GALLIUM_DRIVERS[*]}")
 		-Dvulkan-drivers=$(driver_list "${VULKAN_DRIVERS[*]}")
 		-Db_ndebug=$(usex debug false true)
+		-Dbuildtype=release
 	)
 	meson_src_configure
 }
