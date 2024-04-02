@@ -3,20 +3,18 @@
 
 EAPI=7
 
-DESCRIPTION="chinese support for 0ad"
-HOMEPAGE=""
+DESCRIPTION="Chinese Fonts and Translations For 0ad"
+HOMEPAGE="https://play0ad.com"
 SRC_URI="http://releases.wildfiregames.com/locales/zh-lang-${PV}.pyromod -> zh-lang-${PV}.zip"
 
-LICENSE=""
+LICENSE="GPL-2"
 SLOT="0"
-KEYWORDS="~amd64 ~x86"
-IUSE=""
+KEYWORDS="*"
 
 DEPEND="
-	>=games-strategy/0ad-0.0.23b_alpha
+	>=games-strategy/0ad-0.0.26_alpha-r1
 "
 RDEPEND="${DEPEND}"
-BDEPEND=""
 
 src_unpack(){
 	if [[ -n ${A} ]]; then
