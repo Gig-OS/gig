@@ -5,15 +5,19 @@ EAPI=8
 
 DESCRIPTION="The world’s most-loved password manager CLI"
 HOMEPAGE="https://1password.com"
-SRC_URI="amd64? ( https://cache.agilebits.com/dist/1P/op2/pkg/v${PV}/op_linux_amd64_v${PV}.zip )"
+SRC_URI="
+	amd64? ( https://cache.agilebits.com/dist/1P/op2/pkg/v${PV}/op_linux_amd64_v${PV}.zip )
+	arm64? ( https://cache.agilebits.com/dist/1P/op2/pkg/v${PV}/op_linux_arm64_v${PV}.zip )
+"
+
+S=${WORKDIR}
 
 LICENSE="all-rights-reserved"
 SLOT="0"
-KEYWORDS="~amd64"
+KEYWORDS="amd64 arm64"
 
 RESTRICT="strip test bindist"
 
-DEPEND=""
 RDEPEND="${DEPEND}
 	acct-group/onepassword-cli
 "
@@ -21,8 +25,6 @@ BDEPEND="
 	app-arch/unzip
 	acct-group/onepassword-cli
 "
-
-S=${WORKDIR}
 
 src_install() {
 	chgrp onepassword-cli op
