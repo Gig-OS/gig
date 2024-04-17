@@ -66,10 +66,6 @@ pkg_postinst() {
 	chmod 4755 /opt/1Password/chrome-sandbox
 	chgrp onepassword /opt/1Password/1Password-BrowserSupport
 	chmod g+s /opt/1Password/1Password-BrowserSupport
-
-	xdg_icon_cache_update
-	xdg_desktop_database_update
-	xdg_mimeinfo_database_update
 }
 
 pkg_postrm() {
