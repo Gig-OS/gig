@@ -12,7 +12,7 @@ SRC_URI="
 	arm64? ( https://github.com/cloud-fs/cloud-fs.github.io/releases/download/v${PV}/clouddrive-2-linux-aarch64-${PV}.tgz -> ${P}-arm64.tar.gz )
 "
 
-LICENSE="nonfree"
+LICENSE="all-rights-reserved"
 SLOT="0"
 KEYWORDS="~amd64 ~arm64"
 
@@ -20,21 +20,20 @@ DEPEND="
 	sys-fs/fuse
 "
 RDEPEND="${DEPEND}"
-BDEPEND=""
 
 src_unpack() {
 	if [ "${A}" != "" ]; then
-		unpack ${A}
+		unpack "${A}"
 	fi
 	mv * "${PN}"-"${PV}"
 }
 
 src_install(){
-	mkdir -p ${D}/opt/clouddrive
-	mv * ${D}/opt/clouddrive
+	mkdir -p "${D}"/opt/clouddrive
+	mv * "${D}"/opt/clouddrive
 
 	insinto /usr/bin
-	dobin ${FILESDIR}/${PN}
+	dobin "${FILESDIR}"/"${PN}"
 
-	systemd_dounit ${FILESDIR}/${PN}.service
+	systemd_dounit "${FILESDIR}"/"${PN}".service
 }
