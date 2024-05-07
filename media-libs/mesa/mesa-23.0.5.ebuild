@@ -11,7 +11,7 @@ MY_P="${P/_/-}"
 
 DESCRIPTION="OpenGL-like graphic library for Linux(Mali-G610 only)"
 HOMEPAGE="https://www.mesa3d.org/ https://mesa.freedesktop.org/"
-SRC_URI="https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu/pool/main/m/mesa/mesa_23.0.5-0ubuntu1~panfork~git221210.120202c6757~noble.tar.xz"
+SRC_URI="https://ppa.launchpadcontent.net/jjriek/panfork-mesa/ubuntu/pool/main/m/mesa/mesa_23.0.5-0ubuntu1~panfork~git221210.120202c6757~noble6.tar.xz"
 KEYWORDS="~alpha amd64 ~arm arm64 ~hppa ~ia64 ~loong ~mips ~ppc ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
 
 LICENSE="MIT"
