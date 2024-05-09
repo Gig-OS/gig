@@ -24,13 +24,6 @@ LICENSE="GPL-2.0"
 SLOT="0"
 KEYWORDS="~arm64"
 
-PDEPEND="
-	>=virtual/dist-kernel-${PV}
-"
-BDEPEND="
-	virtual/libelf
-"
-
 QA_PREBUILT='*'
 
 src_install() {
