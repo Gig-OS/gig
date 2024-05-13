@@ -5,9 +5,9 @@ EAPI=8
 
 inherit cmake xdg
 
-DESCRIPTION="This effect rounds the corners of your windows and adds 
+DESCRIPTION="This effect rounds the corners of your windows and adds
 an outline around them without much affecting the performance of the KDE Plasma desktop"
-HOMEPAGE="This effect rounds the corners of your windows and adds an outline around them without much affecting the performance of the KDE Plasma desktop"
+HOMEPAGE="https://github.com/matinlotfali/KDE-Rounded-Corners"
 SRC_URI="https://github.com/matinlotfali/KDE-Rounded-Corners/archive/refs/tags/v${PV}.tar.gz"
 
 LICENSE="GPL-3.0"
@@ -15,7 +15,9 @@ SLOT="0"
 KEYWORDS="~amd64"
 
 DEPEND="
-	kde-plasma/plasma-meta
+	kde-plasma/kwin
+	kde-frameworks/kconfigwidgets
+	kde-frameworks/kcmutils
 "
 RDEPEND="${DEPEND}"
 BDEPEND=""
