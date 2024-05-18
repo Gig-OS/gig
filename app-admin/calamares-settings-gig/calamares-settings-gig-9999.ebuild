@@ -17,6 +17,8 @@ RDEPEND="
 	sys-fs/btrfs-progs
 	sys-fs/dosfstools
 	sys-fs/squashfs-tools[lzma]
+	dev-libs/libisoburn
+	sys-fs/mtools
 "
 
 src_install() {
