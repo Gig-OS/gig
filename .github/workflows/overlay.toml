@@ -1,0 +1,131 @@
+[__config__]
+oldver = "old_ver.json"
+newver = "new_ver.json"
+
+["app-admin/cockpit-benchmark"]
+source = "github"
+github = "45Drives/cockpit-benchmark"
+use_latest_tag = true
+prefix = "v"
+
+["app-admin/cockpit-file-sharing"]
+source = "github"
+github = "45Drives/cockpit-file-sharing"
+use_latest_tag = true
+prefix = "v"
+
+["app-admin/cockpit-machines"]
+source = "github"
+github = "cockpit-project/cockpit-machines"
+use_latest_tag = true
+prefix = "v"
+
+["app-admin/cockpit-navigator"]
+source = "github"
+github = "45Drives/cockpit-navigator"
+use_latest_tag = true
+prefix = "v"
+
+["app-admin/cockpit-zfs-manager"]
+source = "github"
+github = "optimans/cockpit-zfs-manager"
+use_latest_tag = true
+prefix = "v"
+
+["app-admin/cockpit"]
+source = "github"
+github = "cockpit-project/cockpit"
+use_latest_tag = true
+prefix = "v"
+
+["app-emulation/libvirt-dbus"]
+source = "github"
+github = "libvirt/libvirt-dbus"
+use_latest_tag = true
+prefix = "v"
+
+["app-metrics/pcp"]
+source = "github"
+github = "performancecopilot/pcp"
+use_latest_tag = true
+prefix = "v"
+
+["app-misc/tusk"]
+source = "github"
+github = "klauscfhq/tusk"
+use_latest_tag = true
+prefix = "v"
+
+["app-shells/shell-gpt"]
+source = "github"
+github = "TheR1D/shell_gpt"
+use_latest_tag = true
+prefix = "v"
+
+["dev-python/typer"]
+source = "github"
+github = "tiangolo/typer"
+use_latest_tag = true
+prefix = ""
+
+["dev-util/osc"]
+source = "github"
+github = "openSUSE/osc"
+use_latest_tag = true
+prefix = ""
+
+["kde-misc/kde-rounded-corners"]
+source = "github"
+github = "matinlotfali/KDE-Rounded-Corners"
+use_latest_tag = true
+prefix = "v"
+
+["kde-misc/wallpaper-engine-kde-plugin"]
+source = "github"
+github = "catsout/wallpaper-engine-kde-plugin"
+use_latest_tag = true
+prefix = "v"
+
+["media-gfx/colorpicker"]
+source = "github"
+github = "RonnyDo/ColorPicker"
+use_latest_tag = true
+prefix = ""
+
+["net-fs/clouddrive"]
+source = "github"
+github = "cloud-fs/cloud-fs.github.io"
+use_latest_tag = true
+prefix = "v"
+
+["net-proxy/frp-bin"]
+source = "github"
+github = "fatedier/frp"
+use_latest_tag = true
+prefix = "v"
+
+["sys-fs/gocryptfs"]
+source = "github"
+github = "rfjakob/gocryptfs"
+use_latest_tag = true
+prefix = "v"
+
+["x11-misc/optimus-manager-qt"]
+source = "github"
+github = "Shatur/optimus-manager-qt"
+use_latest_tag = true
+prefix = ""
+
+["x11-misc/optimus-manager"]
+source = "github"
+github = "Askannz/optimus-manager"
+use_latest_tag = true
+prefix = "v"
+
+["x11-misc/polybar"]
+source = "github"
+github = "jaagr/polybar"
+use_latest_tag = true
+prefix = "v"
+
+
