@@ -4,15 +4,14 @@
 EAPI=8
 
 DISTUTILS_USE_PEP517=setuptools
-PYTHON_COMPAT=( python3_{9..11} )
+PYTHON_COMPAT=( python3_{9..13} )
 inherit distutils-r1
 
-DESCRIPTION="openSUSE Commander (osc) is a command-line interface
-to the Open Build Service (OBS)."
+DESCRIPTION="The Command Line Interface to work with an Open Build Service"
 HOMEPAGE="https://github.com/openSUSE/osc"
-SRC_URI="https://github.com/openSUSE/osc/archive/refs/tags/1.3.1.tar.gz"
+SRC_URI="https://github.com/openSUSE/osc/archive/refs/tags/${PV}.tar.gz -> ${P}.tar.gz"
 
-LICENSE="GPL-2.0"
+LICENSE="GPL-2"
 SLOT="0"
 KEYWORDS="~amd64"
 
