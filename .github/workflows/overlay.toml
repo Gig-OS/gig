@@ -98,12 +98,6 @@ github = "cloud-fs/cloud-fs.github.io"
 use_latest_tag = true
 prefix = "v"
 
-["net-proxy/frp-bin"]
-source = "github"
-github = "fatedier/frp"
-use_latest_tag = true
-prefix = "v"
-
 ["sys-fs/gocryptfs"]
 source = "github"
 github = "rfjakob/gocryptfs"
