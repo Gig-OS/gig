@@ -8,7 +8,7 @@ inherit git-r3 cmake
 DESCRIPTION="A KDE wallpaper plugin integrating Wallpaper Engine"
 HOMEPAGE="https://github.com/catsout/wallpaper-engine-kde-plugin"
 EGIT_REPO_URI="https://github.com/catsout/wallpaper-engine-kde-plugin.git"
-EGIT_BRANCH="qt6"
+EGIT_BRANCH="main"
 
 LICENSE="GPL-2.0"
 SLOT="0"
