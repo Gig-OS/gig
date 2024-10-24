@@ -1,11 +1,11 @@
-# Copyright 1999-2018 Gentoo Foundation
+# Copyright 1999-2024 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
 
 DESCRIPTION="A fast and easy-to-use status bar"
 HOMEPAGE="https://github.com/jaagr/polybar"
-SRC_URI="https://github.com/jaagr/polybar/releases/download/${PV}/polybar.tar"
+SRC_URI="https://github.com/jaagr/polybar/releases/download/${PV}/${P}.tar"
 
 LICENSE="MIT"
 SLOT="0"
