@@ -62,7 +62,7 @@ RDEPEND="
 	lm-sensors? ( sys-apps/lm-sensors:=[${MULTILIB_USEDEP}] )
 	opencl? (
 				>=virtual/opencl-3[${MULTILIB_USEDEP}]
-				dev-libs/libclc
+				llvm-core/libclc
 				virtual/libelf:0=[${MULTILIB_USEDEP}]
 			)
 	vaapi? (
