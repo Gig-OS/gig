@@ -1,0 +1,2552 @@
+From c188afb409a62b9bea40f5c400b18f3a4dc0d63a Mon Sep 17 00:00:00 2001
+From: "Stefan Cristian B." <stefan.cristian+git@rogentos.ro>
+Date: Wed, 6 May 2026 23:21:56 +0300
+Subject: [PATCH] Introducing Gentoo stagechooser by @TableFlipper9; gentoo
+ modules for download and install
+
+* introduced stage3 choosing module
+* created boxes to choose mirrors, arches and stage3 archives
+* introduced simple warning to new user regarding
+  blank mirror, which means default mirror
+* error showing for faild fetches or network problems
+* introduced corrected gentoo modules to download, verify and install
+  gentoo stage3
+* introduced USE flag customization via
+  /etc/calamares/modules/gentoopkg.conf
+* fixed encryption for both OpenRC and SystemD
+* moved configuration and installation of stage3
+  from Live /run/ session to user-selected partition
+* introduced and corrected full luks2, expanding encryption
+  to all openrc and systemd stage3 installations
+* implemented hashlib for stage3 verification, replacing previous sha512sum
+* replaced which with shutil.which for better reliability
+* added comments for USE flags changes, and reasoning
+  behind them.
+* mandated cryptsetup installation in all necessary cases
+
+Signed-off-by: Morovan Mihai <mihaimorovan1@gmail.com>
+Signed-off-by: Stefan Cristian B. <stefan.cristian+git@rogentos.ro>
+---
+ calamares-pkexec                              |   7 +
+ src/modules/downloadstage3/main.py            | 519 ++++++++++++++++++
+ src/modules/downloadstage3/module.desc        |   7 +
+ src/modules/dracut_gentoo/main.py             | 160 ++++++
+ src/modules/dracut_gentoo/module.desc         |   7 +
+ src/modules/gentoopkg/gentoopkg.conf          |  84 +++
+ src/modules/gentoopkg/gentoopkg.schema.yaml   |  36 ++
+ src/modules/gentoopkg/main.py                 | 457 +++++++++++++++
+ src/modules/gentoopkg/module.desc             |   9 +
+ .../gentoopkg/test-skip-unavailable.conf      |  32 ++
+ src/modules/stagechoose/CMakeLists.txt        |  13 +
+ src/modules/stagechoose/Config.cpp            | 128 +++++
+ src/modules/stagechoose/Config.h              |  65 +++
+ src/modules/stagechoose/SetStage3Job.cpp      |  61 ++
+ src/modules/stagechoose/SetStage3Job.h        |  22 +
+ src/modules/stagechoose/StageChoosePage.cpp   | 145 +++++
+ src/modules/stagechoose/StageChoosePage.h     |  51 ++
+ src/modules/stagechoose/StageChoosePage.ui    | 172 ++++++
+ .../stagechoose/StageChooseViewStep.cpp       |  80 +++
+ src/modules/stagechoose/StageChooseViewStep.h |  53 ++
+ src/modules/stagechoose/StageFetcher.cpp      | 152 +++++
+ src/modules/stagechoose/StageFetcher.h        |  42 ++
+ src/modules/stagechoose/stagechoose.conf      |   7 +
+ .../stagechoose/stagechoose.schema.yaml       |  17 +
+ 24 files changed, 2326 insertions(+)
+ create mode 100755 calamares-pkexec
+ create mode 100644 src/modules/downloadstage3/main.py
+ create mode 100644 src/modules/downloadstage3/module.desc
+ create mode 100644 src/modules/dracut_gentoo/main.py
+ create mode 100644 src/modules/dracut_gentoo/module.desc
+ create mode 100644 src/modules/gentoopkg/gentoopkg.conf
+ create mode 100644 src/modules/gentoopkg/gentoopkg.schema.yaml
+ create mode 100644 src/modules/gentoopkg/main.py
+ create mode 100644 src/modules/gentoopkg/module.desc
+ create mode 100644 src/modules/gentoopkg/test-skip-unavailable.conf
+ create mode 100644 src/modules/stagechoose/CMakeLists.txt
+ create mode 100644 src/modules/stagechoose/Config.cpp
+ create mode 100644 src/modules/stagechoose/Config.h
+ create mode 100644 src/modules/stagechoose/SetStage3Job.cpp
+ create mode 100644 src/modules/stagechoose/SetStage3Job.h
+ create mode 100644 src/modules/stagechoose/StageChoosePage.cpp
+ create mode 100644 src/modules/stagechoose/StageChoosePage.h
+ create mode 100644 src/modules/stagechoose/StageChoosePage.ui
+ create mode 100644 src/modules/stagechoose/StageChooseViewStep.cpp
+ create mode 100644 src/modules/stagechoose/StageChooseViewStep.h
+ create mode 100644 src/modules/stagechoose/StageFetcher.cpp
+ create mode 100644 src/modules/stagechoose/StageFetcher.h
+ create mode 100644 src/modules/stagechoose/stagechoose.conf
+ create mode 100644 src/modules/stagechoose/stagechoose.schema.yaml
+
+diff --git a/calamares-pkexec b/calamares-pkexec
+new file mode 100755
+index 0000000000..16334252a9
+--- /dev/null
++++ b/calamares-pkexec
+@@ -0,0 +1,7 @@
++#!/usr/bin/env bash
++
++main() {
++	pkexec /usr/bin/calamares
++}
++
++main
+diff --git a/src/modules/downloadstage3/main.py b/src/modules/downloadstage3/main.py
+new file mode 100644
+index 0000000000..43b8d8c3f3
+--- /dev/null
++++ b/src/modules/downloadstage3/main.py
+@@ -0,0 +1,519 @@
++#!/usr/bin/env python3
++import os
++import shutil
++import urllib.request
++import tarfile
++import subprocess
++import libcalamares
++import glob
++import re
++import sys
++import time
++import hashlib
++import multiprocessing
++
++def _progress_hook(count, block_size, total_size):
++    _check_parent_alive()
++    percent = int(count * block_size * 100 / total_size)
++    if percent > 100:
++        percent = 100
++    libcalamares.job.setprogress(percent / 2)
++
++def _check_parent_alive():
++    if os.getppid() == 1:
++        sys.exit(1)
++
++def _check_global_storage_keys():
++    """Check if required global storage keys are set and have values."""
++    print("Checking global storage keys...")
++    
++    if not libcalamares.globalstorage.contains("FINAL_DOWNLOAD_URL"):
++        raise Exception("FINAL_DOWNLOAD_URL key is not set in global storage")
++    
++    if not libcalamares.globalstorage.contains("STAGE_NAME_TAR"):
++        raise Exception("STAGE_NAME_TAR key is not set in global storage")
++    
++    final_download_url = libcalamares.globalstorage.value("FINAL_DOWNLOAD_URL")
++    stage_name_tar = libcalamares.globalstorage.value("STAGE_NAME_TAR")
++    
++    if final_download_url.endswith('/'):
++        final_download_url = final_download_url.rstrip('/')
++    
++    if not final_download_url:
++        raise Exception("FINAL_DOWNLOAD_URL key exists but has no value")
++    
++    if not stage_name_tar:
++        raise Exception("STAGE_NAME_TAR key exists but has no value")
++    
++    print(f"FINAL_DOWNLOAD_URL variable: {final_download_url}")
++    print(f"STAGE_NAME_TAR variable: {stage_name_tar}")
++    
++    return final_download_url, stage_name_tar
++
++def _safe_run(cmd):
++    _check_parent_alive()
++    try:
++        proc = subprocess.Popen(cmd)
++        while True:
++            retcode = proc.poll()
++            if retcode is not None:
++                if retcode != 0:
++                    sys.exit(1) 
++                return retcode
++            if os.getppid() == 1:
++                proc.terminate()
++                try:
++                    proc.wait(timeout=5)
++                except subprocess.TimeoutExpired:
++                    proc.kill()
++                sys.exit(1)
++            time.sleep(1)
++    except subprocess.SubprocessError:
++        sys.exit(1)
++
++def verify_pgp_signature_gemato(filepath, data_file=None):
++    _check_parent_alive()
++    gentoo_keys = "/usr/share/openpgp-keys/gentoo-release.asc"
++    expected_key_id = "13EBBDBEDE7A12775DFDB1BABB572E0E2D182910"
++    
++    try:
++        if data_file:
++            cmd = ["gemato", "openpgp-verify-detached", "-K", gentoo_keys, filepath, data_file]
++        else:
++            cmd = ["gemato", "openpgp-verify", "-K", gentoo_keys, filepath]
++        
++        result = subprocess.run(
++            cmd,
++            capture_output=True,
++            text=True,
++            check=False
++        )
++        
++        if result.returncode == 0:
++            output = result.stdout + result.stderr
++            if expected_key_id in output or expected_key_id.lower() in output.lower():
++                if result.stdout:
++                    print(result.stdout.strip())
++                if result.stderr:
++                    print(result.stderr.strip())
++                return (True, "Verified with gemato")
++            else:
++                libcalamares.utils.error(f"Signature not from expected key {expected_key_id}")
++                return (False, "Wrong signing key")
++        else:
++            libcalamares.utils.error(f"PGP signature verification failed for {filepath}")
++            if result.stderr:
++                libcalamares.utils.error(result.stderr.strip())
++            return (False, "Verification failed")
++    except FileNotFoundError:
++        libcalamares.utils.error("gemato command not found")
++        return (False, "gemato not found")
++    except Exception as e:
++        libcalamares.utils.error(f"Error verifying PGP signature: {str(e)}")
++        return (False, str(e))
++
++def calculate_hash(filepath, hash_type):
++    _check_parent_alive()
++    try:
++        if hash_type == "SHA512":
++            hasher = hashlib.sha512()
++        elif hash_type == "BLAKE2B":
++            hasher = hashlib.blake2b(digest_size=64)
++        else:
++            print(f"FAILURE: Unsupported hash type: {hash_type}")
++            return None
++        with open(filepath, 'rb') as f:
++            while chunk := f.read(8192):
++                _check_parent_alive()
++                hasher.update(chunk)
++        return hasher.hexdigest()
++    except Exception as e:
++        print(f"FAILURE: Error calculating {hash_type} hash: {str(e)}")
++        return None
++
++def verify_hash(filepath, hash_type, expected_hash):
++    calculated_hash = calculate_hash(filepath, hash_type)
++    if calculated_hash is None:
++        return False
++    if calculated_hash.lower() == expected_hash.lower():
++        return True
++    else:
++        print(f"FAILURE: {hash_type} verification for {os.path.basename(filepath)}")
++        print(f"Expected: {expected_hash}")
++        print(f"Got:      {calculated_hash}")
++        return False
++
++def parse_digests_file(digests_path):
++    _check_parent_alive()
++    file_hashes = {}
++    current_hash_type = None
++    try:
++        with open(digests_path, 'r') as f:
++            for line in f:
++                _check_parent_alive()
++                line = line.strip()
++                if line.startswith('-') or line.startswith('Hash:'):
++                    continue
++                hash_header_match = re.match(r'^#\s+([A-Z0-9]+)\s+HASH$', line)
++                if hash_header_match:
++                    current_hash_type = hash_header_match.group(1)
++                    continue
++                if current_hash_type:
++                    hash_line_match = re.match(r'^([0-9a-f]+)\s+(.+)$', line)
++                    if hash_line_match:
++                        hash_value = hash_line_match.group(1)
++                        filename = hash_line_match.group(2)
++                        if filename not in file_hashes:
++                            file_hashes[filename] = {}
++                        file_hashes[filename][current_hash_type] = hash_value
++        return file_hashes
++    except Exception as e:
++        print(f"FAILURE: Error parsing DIGESTS file: {str(e)}")
++        return {}
++
++def verify_stage3_with_digests(digests_path, stage3_path):
++    success, msg = verify_pgp_signature_gemato(digests_path)
++    if not success:
++        libcalamares.utils.error("DIGESTS signature verification failed")
++        return False
++    else:
++        print(f"DIGESTS PGP verification: {msg}")
++    
++    file_hashes = parse_digests_file(digests_path)
++    if not file_hashes:
++        print("FAILURE: No files found in DIGESTS")
++        return False
++    
++    stage3_name = os.path.basename(stage3_path)
++    if stage3_name not in file_hashes:
++        print(f"FAILURE: {stage3_name} not found in DIGESTS file")
++        return False
++    
++    hashes = file_hashes[stage3_name]
++    all_valid = True
++    for hash_type, expected_hash in hashes.items():
++        if not verify_hash(stage3_path, hash_type, expected_hash):
++            all_valid = False
++    return all_valid
++
++def write_makeopts(make_conf_path):
++    """Write MAKEOPTS to make.conf for parallel compilation.
++    Sets -j based on CPU count and -s for silent make to speed up compilation.
++    """
++    numcpu = multiprocessing.cpu_count()
++
++    with open(make_conf_path, 'a') as f:
++        f.write("\n# MAKEOPTS is set automatically by Calamares installer.\n")
++        f.write(f'MAKEOPTS="-j{numcpu} -s"\n')
++
++
++def run():
++    if (libcalamares.globalstorage.contains("GENTOO_LIVECD") and 
++        libcalamares.globalstorage.value("GENTOO_LIVECD") == "yes"):
++        print("GENTOO_LIVECD is set to 'yes', copying /run/rootfsbase to rootMountPoint")
++        
++        root_mount_point = libcalamares.globalstorage.value("rootMountPoint")
++        if not root_mount_point:
++            raise Exception("rootMountPoint not set in global storage")
++        
++        _safe_run(["rsync", "-aXA", "--hard-links", "--info=progress2", "/run/rootfsbase/", root_mount_point + "/"])
++        libcalamares.job.setprogress(50)
++
++        make_conf_path = os.path.join(root_mount_point, "etc/portage/make.conf")
++        write_makeopts(make_conf_path)
++        
++        package_use_dir = os.path.join(root_mount_point, "etc/portage/package.use")
++        os.makedirs(package_use_dir, exist_ok=True)
++        
++        partitions = libcalamares.globalstorage.value("partitions")
++        is_encrypted = False
++        if partitions:
++            for partition in partitions:
++                if partition.get("mountPoint") == "/" and "luksMapperName" in partition:
++                    is_encrypted = True
++                    break
++        
++        with open(os.path.join(package_use_dir, "00-livecd.package.use"), "w", encoding="utf-8") as f:
++            f.write("# use dracut as the initramfs generator for installkernel, required for our dracut-based setup\n")
++            f.write(">=sys-kernel/installkernel-50 dracut\n")
++        
++        write_dracut_config(root_mount_point, "openrc")
++        ensure_grub_d_directory(root_mount_point)
++        
++        libcalamares.job.setprogress(70)
++        
++        gentoo_repo = os.path.join(root_mount_point, "var/db/repos/gentoo")
++        if not os.path.exists(gentoo_repo):
++            _safe_run(["rsync", "-L", "/etc/resolv.conf", os.path.join(root_mount_point, "etc/resolv.conf")])
++            _safe_run(["chroot", root_mount_point, "/bin/bash", "-c", "emerge-webrsync -q"])
++        
++        libcalamares.job.setprogress(90)
++        
++        return None
++
++    final_download_url, stage_name_tar = _check_global_storage_keys()
++    
++    full_tarball_url = final_download_url
++    full_sha256_url = final_download_url + ".sha256"
++    full_tarball_asc_url = final_download_url + ".asc"
++    base_url = '/'.join(final_download_url.split('/')[:-1])
++    full_digests_url = base_url + "/" + stage_name_tar + ".DIGESTS"
++
++    root_mount_point = libcalamares.globalstorage.value("rootMountPoint")
++    if not root_mount_point:
++        raise Exception("rootMountPoint not set in global storage")
++    extract_path = root_mount_point
++
++    download_path = os.path.join(root_mount_point, stage_name_tar)
++    sha256_path = os.path.join(root_mount_point, f"{stage_name_tar}.sha256")
++    tarball_asc_path = os.path.join(root_mount_point, f"{stage_name_tar}.asc")
++    digests_path = os.path.join(root_mount_point, f"{stage_name_tar}.DIGESTS")
++
++    if os.path.exists(download_path):
++        os.remove(download_path)
++    if os.path.exists(sha256_path):
++        os.remove(sha256_path)
++    if os.path.exists(tarball_asc_path):
++        os.remove(tarball_asc_path)
++    if os.path.exists(digests_path):
++        os.remove(digests_path)
++
++    urllib.request.urlretrieve(full_tarball_url, download_path, _progress_hook)
++    libcalamares.job.setprogress(30)
++    
++    urllib.request.urlretrieve(full_sha256_url, sha256_path)
++    libcalamares.job.setprogress(35)
++    
++    try:
++        urllib.request.urlretrieve(full_tarball_asc_url, tarball_asc_path)
++    except Exception as e:
++        print(f"WARNING: Could not download tarball .asc file: {str(e)}")
++    libcalamares.job.setprogress(38)
++    
++    try:
++        urllib.request.urlretrieve(full_digests_url, digests_path)
++    except Exception as e:
++        print(f"WARNING: Could not download DIGESTS file: {str(e)}")
++    libcalamares.job.setprogress(40)
++
++    # the .sha256 file is PGP-signed, so we must find the actual hash line
++    # by looking for a line matching: <hex>  <filename>
++    expected_sha256 = None
++    recorded_filename = None
++    with open(sha256_path, "r") as f:
++        for line in f:
++            line = line.strip()
++            match = re.match(r'^([0-9a-f]{64})\s+(\S+)$', line)
++            if match:
++                expected_sha256 = match.group(1)
++                recorded_filename = match.group(2)
++                break
++    if not expected_sha256:
++        libcalamares.utils.error("Could not find SHA256 hash line in .sha256 file")
++        sys.exit(1)
++    if recorded_filename and recorded_filename != stage_name_tar:
++        libcalamares.utils.error(
++            f"SHA256 file refers to '{recorded_filename}', expected '{stage_name_tar}'"
++        )
++        sys.exit(1)
++    hasher = hashlib.sha256()
++    with open(download_path, "rb") as f:
++        while chunk := f.read(8192):
++            _check_parent_alive()
++            hasher.update(chunk)
++    if hasher.hexdigest().lower() != expected_sha256.lower():
++        libcalamares.utils.error("SHA256 verification of tarball failed")
++        sys.exit(1)
++    libcalamares.job.setprogress(43)
++
++    if os.path.isfile(tarball_asc_path):
++        success, msg = verify_pgp_signature_gemato(tarball_asc_path, download_path)
++        if not success:
++            libcalamares.utils.error("Tarball PGP signature verification failed")
++            sys.exit(1)
++        else:
++            print(f"Tarball PGP verification: {msg}")
++    else:
++        libcalamares.utils.error("No PGP signature file for tarball")
++        sys.exit(1)
++    libcalamares.job.setprogress(46)
++
++    if os.path.isfile(digests_path) and not verify_stage3_with_digests(digests_path, download_path):
++        libcalamares.utils.error("DIGESTS verification failed")
++        sys.exit(1)
++    libcalamares.job.setprogress(50)
++
++    with tarfile.open(download_path, "r:xz") as tar:
++        members = tar.getmembers()
++        total_members = len(members)
++        for i, member in enumerate(members):
++            _check_parent_alive()
++            try:
++                tar.extract(member, extract_path, filter='tar')
++            except OSError as e:
++                if e.errno != 17:
++                    raise
++            libcalamares.job.setprogress(50 + (i * 50 / total_members))
++
++    os.remove(download_path)
++    if os.path.exists(sha256_path):
++        os.remove(sha256_path)
++    if os.path.exists(tarball_asc_path):
++        os.remove(tarball_asc_path)
++    if os.path.exists(digests_path):
++        os.remove(digests_path)
++
++    shutil.copy2("/etc/resolv.conf", os.path.join(extract_path, "etc", "resolv.conf"))
++
++    make_conf_path = os.path.join(extract_path, "etc/portage/make.conf")
++    write_makeopts(make_conf_path)
++
++    os.makedirs(os.path.join(extract_path, "etc/portage/binrepos.conf"), exist_ok=True)
++    
++    gentoobinhost_source = "/etc/portage/binrepos.conf/gentoobinhost.conf"
++    if os.path.exists(gentoobinhost_source):
++        shutil.copy2(
++            gentoobinhost_source,
++            os.path.join(extract_path, "etc/portage/binrepos.conf/gentoobinhost.conf")
++        )
++    else:
++        print(f"Warning: {gentoobinhost_source} does not exist, skipping copy")
++
++    package_use_dir = os.path.join(extract_path, "etc/portage/package.use")
++    os.makedirs(package_use_dir, exist_ok=True)
++    
++    partitions = libcalamares.globalstorage.value("partitions")
++    is_encrypted = False
++    if partitions:
++        for partition in partitions:
++            if partition.get("mountPoint") == "/" and "luksMapperName" in partition:
++                is_encrypted = True
++                break
++    
++    with open(os.path.join(package_use_dir, "00-livecd.package.use"), "w", encoding="utf-8") as f:
++        f.write("# use dracut as the initramfs generator for installkernel, required for Gentoo dracut-based setup\n")
++        f.write(">=sys-kernel/installkernel-50 dracut grub\n")
++
++    is_systemd = "systemd" in stage_name_tar.lower()
++    is_selinux = "selinux" in stage_name_tar.lower()
++    is_musl = "musl" in stage_name_tar.lower()
++
++    if is_encrypted and is_systemd:
++        with open(os.path.join(package_use_dir, "00-livecd.package.use"), "a", encoding="utf-8") as f:
++            f.write("# enable cryptsetup USE flag for systemd so it can unlock LUKS volumes at boot\n")
++            f.write("sys-apps/systemd cryptsetup\n")
++    
++    if is_selinux or is_musl:
++        with open(os.path.join(package_use_dir, "00-livecd.package.use"), "a", encoding="utf-8") as f:
++            f.write("# SELinux and musl profiles require the dbus USE flag for wpa_supplicant\n")
++            f.write("# This is required by NetworkManager's wifi support (when not using iwd backend)\n")
++            f.write("# required by net-misc/networkmanager-1.52.1::gentoo[-iwd,wifi]\n")
++            f.write("net-wireless/wpa_supplicant dbus\n")
++    write_dracut_config(extract_path, stage_name_tar)
++    ensure_grub_d_directory(extract_path)
++
++    _safe_run(["chroot", extract_path, "getuto"])
++
++    _safe_run([
++        "chroot", extract_path, "/bin/bash", "-c",
++        'emerge-webrsync -q'
++    ])
++
++    # rebuild systemd with the cryptsetup USE flag enabled so it can unlock LUKS volumes at boot;
++    # the USE flag was set earlier in 00-livecd.package.use
++    # this is happening only if the user chooses encryption
++    if is_encrypted and is_systemd:
++        _safe_run([
++            "chroot", extract_path, "/bin/bash", "-c",
++            'EMERGE_DEFAULT_OPTS="${EMERGE_DEFAULT_OPTS} --getbinpkg" emerge -q1 sys-apps/systemd'
++        ])
++
++    packages = "sys-boot/grub net-misc/networkmanager net-wireless/iwd"
++
++    # for OpenRC stages, cryptsetup must always be installed.
++    # systemd dracut handles cryptsetup internally, so it is not needed as a separate package.
++    if not is_systemd:
++        packages += " sys-fs/cryptsetup"
++
++    _safe_run([
++        "chroot", extract_path, "/bin/bash", "-c",
++        f'EMERGE_DEFAULT_OPTS="${{EMERGE_DEFAULT_OPTS}} --getbinpkg" emerge -q {packages}'
++    ])
++
++    # calamares requires sys-apps/dbus and sys-libs/timezone-data to determine
++    # host timezone and locale details during the installation process
++    # they're not necessary after the installation process
++    _safe_run([
++        "chroot", extract_path, "/bin/bash", "-c",
++        'EMERGE_DEFAULT_OPTS="${EMERGE_DEFAULT_OPTS} --getbinpkg" emerge -q1 sys-apps/dbus sys-libs/timezone-data'
++    ])
++
++    for folder in ["distfiles", "binpkgs", "binhost"]:
++        path = os.path.join(extract_path, f"var/cache/{folder}")
++        if os.path.exists(path):
++            for entry in glob.glob(path + "/*"):
++                if os.path.isfile(entry) or os.path.islink(entry):
++                    os.unlink(entry)
++                elif os.path.isdir(entry):
++                    shutil.rmtree(entry)
++
++    return None
++
++def write_dracut_config(root_mount_point, stage_name_tar):
++    """Write dracut configuration before kernel installation to prevent warnings.
++    
++    This runs BEFORE gentoopkg installs gentoo-kernel-bin, so when installkernel's
++    dracut hook runs, it will find this config and generate correct initramfs first time.
++    """
++    dracut_conf_dir = os.path.join(root_mount_point, "etc/dracut.conf.d")
++    os.makedirs(dracut_conf_dir, exist_ok=True)
++    
++    dracut_conf_path = os.path.join(dracut_conf_dir, "10-calamares.conf")
++    
++    partitions = libcalamares.globalstorage.value("partitions")
++    is_encrypted = False
++    if partitions:
++        for partition in partitions:
++            if partition.get("mountPoint") == "/" and "luksMapperName" in partition:
++                is_encrypted = True
++                break
++    
++    is_systemd = "systemd" in stage_name_tar.lower()
++    
++    with open(dracut_conf_path, 'w') as conf_file:
++        conf_file.write("# Generated by Calamares installer\n")
++        conf_file.write("# Configuration for dracut initramfs generation\n\n")
++        
++        conf_file.write('hostonly="yes"\n')
++        conf_file.write('hostonly_cmdline="yes"\n\n')
++        
++        if not is_systemd:
++            conf_file.write("# Exclude systemd modules\n")
++            conf_file.write('omit_dracutmodules+=" systemd systemd-initrd systemd-networkd dracut-systemd plymouth "\n\n')
++            
++            if is_encrypted:
++                conf_file.write("# Add encryption support (OpenRC)\n")
++                conf_file.write('add_dracutmodules+=" crypt dm rootfs-block "\n')
++            else:
++                conf_file.write("# Omit encryption modules (no encryption)\n")
++                conf_file.write('omit_dracutmodules+=" crypt crypt-gpg crypt-loop "\n')
++        else:
++            conf_file.write("# Omit unnecessary modules (systemd system)\n")
++            conf_file.write('omit_dracutmodules+=" plymouth "\n')
++            
++            if is_encrypted:
++                conf_file.write("\n# Add encryption support (systemd)\n")
++                conf_file.write('add_dracutmodules+=" crypt dm rootfs-block "\n')
++            else:
++                conf_file.write("\n# Omit encryption modules (no encryption)\n")
++                conf_file.write('omit_dracutmodules+=" crypt crypt-gpg crypt-loop "\n')
++
++    print(f"Pre-configured dracut at {dracut_conf_path} (systemd={is_systemd}, encrypted={is_encrypted})")
++
++def ensure_grub_d_directory(root_mount_point):
++    """Ensure /etc/default/grub.d directory exists for grubcfg module.
++    This directory is used when prefer_grub_d is enabled in grubcfg.conf,
++    allowing Calamares to write configuration that survives package updates.
++    """
++    _safe_run(["chroot", root_mount_point, "mkdir", "-p", "/etc/default/grub.d"])
++    print("Ensured /etc/default/grub.d directory exists in chroot")
+diff --git a/src/modules/downloadstage3/module.desc b/src/modules/downloadstage3/module.desc
+new file mode 100644
+index 0000000000..41c2ddbb6a
+--- /dev/null
++++ b/src/modules/downloadstage3/module.desc
+@@ -0,0 +1,7 @@
++# SPDX-FileCopyrightText: no
++# SPDX-License-Identifier: CC0-1.0
++---
++type:       "job"
++name:       "downloadstage3"
++interface:  "python"
++script:     "main.py"
+diff --git a/src/modules/dracut_gentoo/main.py b/src/modules/dracut_gentoo/main.py
+new file mode 100644
+index 0000000000..7e65af9dc3
+--- /dev/null
++++ b/src/modules/dracut_gentoo/main.py
+@@ -0,0 +1,160 @@
++import subprocess
++import glob
++import os
++import re
++import shutil
++import libcalamares
++from libcalamares.utils import target_env_process_output
++
++def find_latest_gentoo_initramfs():
++    root_mount_point = libcalamares.globalstorage.value("rootMountPoint")
++    if not root_mount_point:
++        raise ValueError("rootMountPoint not set in global storage")
++    
++    target_boot_path = os.path.join(root_mount_point, 'boot')
++    search_pattern = os.path.join(target_boot_path, 'initramfs-*-gentoo-dist.img')
++    candidates = glob.glob(search_pattern)
++    
++    if not candidates:
++        raise FileNotFoundError(f"No Gentoo dist initramfs found in {target_boot_path}")
++
++    def extract_version(path):
++        basename = os.path.basename(path)
++        match = re.search(r'initramfs-(\d+\.\d+\.\d+)-gentoo-dist\.img', basename)
++        if match:
++            return tuple(map(int, match.group(1).split('.')))
++        return (0, 0, 0)
++
++    candidates.sort(key=lambda x: extract_version(x), reverse=True)
++    return candidates[0]
++
++def extract_kernel_simple_version(initramfs_path):
++    basename = os.path.basename(initramfs_path)
++    match = re.search(r'initramfs-(\d+\.\d+\.\d+)-gentoo-dist\.img', basename)
++    if match:
++        return match.group(1)
++    raise ValueError(f"Could not extract simple version from initramfs filename: {basename}")
++
++def is_systemd_stage3():
++    stage_name = libcalamares.globalstorage.value("STAGE_NAME_TAR")
++    if stage_name and "systemd" in stage_name.lower():
++        return True
++    return False
++
++def is_root_encrypted():
++    partitions = libcalamares.globalstorage.value("partitions")
++    if not partitions:
++        return False
++    for partition in partitions:
++        if partition.get("mountPoint") == "/" and "luksMapperName" in partition:
++            return True
++    return False
++
++def ensure_cryptsetup_for_openrc():
++    """Ensure cryptsetup is installed for OpenRC encrypted systems.
++    
++    Systemd dracut includes its own cryptsetup implementation,
++    but OpenRC dracut needs the sys-apps/cryptsetup package.
++    """
++    if is_systemd_stage3():
++        return
++    
++    root_mount_point = libcalamares.globalstorage.value("rootMountPoint")
++    if not root_mount_point:
++        return
++    
++    search_path = ":".join(
++        os.path.join(root_mount_point, d)
++        for d in ("usr/bin", "usr/sbin", "bin", "sbin")
++    )
++    if shutil.which("cryptsetup", path=search_path):
++        libcalamares.utils.debug("cryptsetup is installed, continueing...")
++    else:
++        raise Exception("cryptsetup not found in target system; it should have been installed by the downloadstage3 module")
++
++def configure_openrc_dmcrypt():
++    """Configure OpenRC dmcrypt service for encrypted partitions (non-root)."""
++    if is_systemd_stage3():
++        return
++    
++    partitions = libcalamares.globalstorage.value("partitions")
++    if not partitions:
++        return
++    
++    root_mount_point = libcalamares.globalstorage.value("rootMountPoint")
++    if not root_mount_point:
++        return
++    
++    dmcrypt_conf_path = os.path.join(root_mount_point, "etc/conf.d/dmcrypt")
++    unencrypted_separate_boot = any(
++        p.get("mountPoint") == "/boot" and "luksMapperName" not in p 
++        for p in partitions
++    )
++    
++    for partition in partitions:
++        has_luks = "luksMapperName" in partition
++        skip_partitions = partition.get("mountPoint") == "/" or partition.get("fs") == "linuxswap"
++        
++        if has_luks and not skip_partitions:
++            crypto_target = partition["luksMapperName"]
++            crypto_source = f"/dev/disk/by-uuid/{partition['luksUuid']}"
++            
++            libcalamares.utils.debug(
++                f"Writing OpenRC LUKS configuration for partition {partition.get('mountPoint')}"
++            )
++            
++            with open(dmcrypt_conf_path, 'a+') as dmcrypt_file:
++                dmcrypt_file.write(f"\ntarget={crypto_target}")
++                dmcrypt_file.write(f"\nsource={crypto_source}")
++                if not unencrypted_separate_boot:
++                    dmcrypt_file.write("\nkey=/crypto_keyfile.bin")
++                dmcrypt_file.write("\n")
++
++def run():
++    if (libcalamares.globalstorage.contains("GENTOO_LIVECD") and 
++        libcalamares.globalstorage.value("GENTOO_LIVECD") == "yes"):
++        root_mount_point = libcalamares.globalstorage.value("rootMountPoint")
++        if root_mount_point:
++            try:
++                target_env_process_output(['userdel', '-r', 'gentoo'])
++            except:
++                pass
++    
++    try:
++        dracut_options = [
++            "-H", "-f",
++            "-o", "systemd", "-o", "systemd-initrd", "-o", "systemd-networkd",
++            "-o", "dracut-systemd", "-o", "plymouth",
++            "--early-microcode"
++        ]
++        
++        if is_root_encrypted():
++            dracut_options.extend([
++                "--add", "crypt",
++                "--add", "dm",
++                "--add", "rootfs-block"
++            ])
++        
++        latest_initramfs = find_latest_gentoo_initramfs()
++        simple_version = extract_kernel_simple_version(latest_initramfs)
++        dracut_options.append(f'--kver={simple_version}-gentoo-dist')
++        
++        if is_root_encrypted():
++            ensure_cryptsetup_for_openrc()
++        
++        libcalamares.utils.debug(f"Successfully created initramfs for kernel {simple_version}-gentoo-dist")
++        
++        if is_root_encrypted():
++            configure_openrc_dmcrypt()
++        
++    except FileNotFoundError as e:
++        libcalamares.utils.warning(f"No Gentoo initramfs found: {e}")
++        return 1
++    except ValueError as e:
++        libcalamares.utils.warning(f"Failed to extract kernel version: {e}")
++        return 1
++    except subprocess.CalledProcessError as cpe:
++        libcalamares.utils.warning(f"Dracut failed with output: {cpe.output}")
++        return cpe.returncode
++    
++    return None
+\ No newline at end of file
+diff --git a/src/modules/dracut_gentoo/module.desc b/src/modules/dracut_gentoo/module.desc
+new file mode 100644
+index 0000000000..f200063d97
+--- /dev/null
++++ b/src/modules/dracut_gentoo/module.desc
+@@ -0,0 +1,7 @@
++# SPDX-FileCopyrightText: no
++# SPDX-License-Identifier: CC0-1.0
++---
++type:       "job"
++name:       "dracut_gentoo"
++interface:  "python"
++script:     "main.py"
+diff --git a/src/modules/gentoopkg/gentoopkg.conf b/src/modules/gentoopkg/gentoopkg.conf
+new file mode 100644
+index 0000000000..a0abca7a68
+--- /dev/null
++++ b/src/modules/gentoopkg/gentoopkg.conf
+@@ -0,0 +1,84 @@
++# SPDX-FileCopyrightText: no
++# SPDX-License-Identifier: CC0-1.0
++#
++# Configuration for the gentoopkg module - Gentoo-specific package management
++# This module extends the standard packages functionality with Gentoo-specific
++# features like USE flags, package.accept_keywords, and world updates.
++---
++
++# Skip package installation/removal failures instead of aborting Calamares.
++# When true, treats all "install" operations as "try_install" and
++# all "remove" operations as "try_remove", meaning package
++# installation/removal failures won't cause Calamares to fail.
++# This is useful when some packages might not be available in
++# certain repositories or USE flag configurations.
++skip_unavailable: false
++
++# Skip the whole module when there is no internet connection.
++skip_if_no_internet: false
++
++# Run "emerge-webrsync -q" to update the Portage tree before installing packages.
++update_db: true
++
++# Method to use for Portage tree sync when update_db is true.
++# Options:
++#  - "webrsync": Use emerge-webrsync (faster, uses snapshots, fallback to sync if fails)
++#  - "sync": Use emerge --sync (slower but more reliable for problematic networks)  
++#  - "none": Skip syncing entirely (use existing Portage tree)
++# Set to none because downloadstage3 already runs emerge-webrsync
++sync_method: none
++
++# Run system update after package operations.
++# If gentoo_world_update is true, runs "emerge --update --deep --newuse @world"
++# If false, runs "emerge --update @system"
++update_system: false
++
++# Perform a full world update after package operations.
++# This ensures all dependencies are properly updated with new USE flags.
++gentoo_world_update: false
++
++# List of packages that should be added to package.accept_keywords
++# to allow installation of testing/unstable versions.
++# Example: ["dev-lang/rust", "sys-devel/llvm"]
++accept_keywords: []
++
++# Package operations - same format as the standard packages module
++# Supported operations:
++#  - install: Install packages (critical - will fail if package unavailable, unless skip_unavailable=true)
++#  - try_install: Install packages (non-critical - will continue if package unavailable)
++#  - remove: Remove packages (critical - will fail if package unavailable, unless skip_unavailable=true)  
++#  - try_remove: Remove packages (non-critical - will continue if package unavailable)
++#  - localInstall: Install local binary packages
++#
++# Package names support Gentoo-specific syntax:
++#  - Category/package: "dev-lang/python"
++#  - Specific versions: "=dev-lang/python-3.11*"
++#  - USE flags: "dev-lang/python[sqlite,ssl]"
++#  - Slots: "dev-lang/python:3.11"
++#
++# Localization with LOCALE substitution is supported:
++#  - "app-office/libreoffice-l10n-${LOCALE}" will be substituted based on system locale
++#  - If locale is "en", packages with LOCALE in the name are skipped
++#
++operations:
++  # Example: Install essential packages
++  - install:
++    - app-editors/vim
++    - sys-process/htop
++    - net-misc/wget
++    - app-admin/sudo
++  
++  # Example: Remove unwanted packages (use try_remove to ignore if not present)
++  - try_remove:
++    - games-misc/fortune-mod
++    
++  # Example: Install packages that might not be available everywhere
++  - try_install:
++    - app-office/libreoffice-l10n-${LOCALE}
++    - media-libs/mesa[vulkan]  # might fail if vulkan USE not available
++
++  # Example: Install with pre/post scripts
++  - install:
++    - package: www-servers/apache
++      pre-script: /bin/systemctl stop apache2 || true
++      post-script: /bin/systemctl enable apache2
+diff --git a/src/modules/gentoopkg/gentoopkg.schema.yaml b/src/modules/gentoopkg/gentoopkg.schema.yaml
+new file mode 100644
+index 0000000000..cbce262f0a
+--- /dev/null
++++ b/src/modules/gentoopkg/gentoopkg.schema.yaml
+@@ -0,0 +1,36 @@
++# SPDX-FileCopyrightText: 2020 Adriaan de Groot <groot@kde.org>
++# SPDX-License-Identifier: GPL-3.0-or-later
++---
++$schema: https://json-schema.org/schema#
++$id: https://calamares.io/schemas/gentoopkg
++additionalProperties: false
++type: object
++properties:
++    skip_unavailable: { type: boolean, default: false }
++    skip_if_no_internet: { type: boolean, default: false }
++    update_db: { type: boolean, default: true }
++    sync_method: 
++        type: string
++        enum: ["webrsync", "sync", "none"]
++        default: "webrsync"
++    update_system: { type: boolean, default: false }
++    gentoo_world_update: { type: boolean, default: false }
++    
++    accept_keywords:
++        type: array
++        items:
++            type: string
++        default: []
++
++    operations:
++        type: array
++        items:
++            additionalProperties: false
++            type: object
++            properties:
++                install: { type: array }
++                remove: { type: array }
++                try_install: { type: array }
++                try_remove: { type: array }
++                localInstall: { type: array }
++                source: { type: string }
+diff --git a/src/modules/gentoopkg/main.py b/src/modules/gentoopkg/main.py
+new file mode 100644
+index 0000000000..054f8d786f
+--- /dev/null
++++ b/src/modules/gentoopkg/main.py
+@@ -0,0 +1,457 @@
++#!/usr/bin/env python3
++# -*- coding: utf-8 -*-
++#
++# === This file is part of Calamares - <https://calamares.io> ===
++#
++#   SPDX-FileCopyrightText: 2014 Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
++#   SPDX-FileCopyrightText: 2015-2017 Teo Mrnjavac <teo@kde.org>
++#   SPDX-FileCopyrightText: 2016-2017 Kyle Robbertze <kyle@aims.ac.za>
++#   SPDX-FileCopyrightText: 2017 Alf Gaida <agaida@siduction.org>
++#   SPDX-FileCopyrightText: 2018 Adriaan de Groot <groot@kde.org>
++#   SPDX-FileCopyrightText: 2018 Philip Müller <philm@manjaro.org>
++#   SPDX-License-Identifier: GPL-3.0-or-later
++#
++#   Calamares is Free Software: see the License-Identifier above.
++#
++#   Gentoo-specific package manager module that extends the standard packages
++#   module with additional functionality:
++#   
++#   Configuration options:
++#   - skip_unavailable: boolean (default: false)
++#     If true, treats all "install" operations as "try_install" and
++#     all "remove" operations as "try_remove", meaning package
++#     installation/removal failures won't cause Calamares to fail.
++#     This is useful when some packages might not be available in
++#     certain repositories or USE flag configurations.
++#   - gentoo_world_update: boolean (default: false)
++#     If true, performs an "emerge --update --deep --newuse @world" 
++#     after package operations to ensure system consistency.
++#   - accept_keywords: list of strings (default: [])
++#     List of packages to add to package.accept_keywords before
++#     package installation (for testing/unstable packages).
++#   - sync_method: string (default: "webrsync")
++#     Method to use for Portage tree sync. Options: "webrsync", "sync", "none".
++#     "webrsync" uses emerge-webrsync (faster, uses snapshots),
++#     "sync" uses emerge --sync (slower but more reliable),
++#     "none" skips syncing entirely.
++#
++
++import abc
++from string import Template
++import subprocess
++import os
++
++import libcalamares
++from libcalamares.utils import check_target_env_call, target_env_call
++from libcalamares.utils import gettext_path, gettext_languages
++
++import gettext
++_translation = gettext.translation("calamares-python",
++                                   localedir=gettext_path(),
++                                   languages=gettext_languages(),
++                                   fallback=True)
++_ = _translation.gettext
++_n = _translation.ngettext
++
++# For the entire job
++total_packages = 0
++# Done so far for this job
++completed_packages = 0
++# One group of packages from an -install or -remove entry
++group_packages = 0
++
++# You can override the status message by setting this variable
++custom_status_message = None
++
++INSTALL = object()
++REMOVE = object()
++mode_packages = None
++
++
++def _change_mode(mode):
++    global mode_packages
++    mode_packages = mode
++    libcalamares.job.setprogress(completed_packages * 1.0 / total_packages)
++
++
++def pretty_name():
++    return _("Install Gentoo packages.")
++
++
++def pretty_status_message():
++    if custom_status_message is not None:
++        return custom_status_message
++    if not group_packages:
++        if (total_packages > 0):
++            s = _("Processing packages (%(count)d / %(total)d)")
++        else:
++            s = _("Install Gentoo packages.")
++
++    elif mode_packages is INSTALL:
++        s = _n("Installing one package.",
++               "Installing %(num)d packages.", group_packages)
++    elif mode_packages is REMOVE:
++        s = _n("Removing one package.",
++               "Removing %(num)d packages.", group_packages)
++    else:
++        s = _("Install Gentoo packages.")
++
++    return s % {"num": group_packages,
++                "count": completed_packages,
++                "total": total_packages}
++
++
++class GentooPackageManager:
++    """
++    Gentoo-specific package manager using Portage (emerge).
++    This extends the basic package management with Gentoo-specific
++    features like USE flags, package.accept_keywords, and world updates.
++    """
++    
++    def __init__(self):
++        self.skip_unavailable = libcalamares.job.configuration.get("skip_unavailable", False)
++        self.gentoo_world_update = libcalamares.job.configuration.get("gentoo_world_update", False)
++        self.accept_keywords = libcalamares.job.configuration.get("accept_keywords", [])
++        self.package_use = libcalamares.job.configuration.get("package_use", {})
++        self.sync_method = libcalamares.job.configuration.get("sync_method", "webrsync")
++        
++        if self.accept_keywords:
++            self._setup_accept_keywords()
++        if self.package_use:
++            self._setup_package_use()
++    
++    def _setup_package_use(self):
++        """Setup package.use file for custom USE flags (only if package.use is a directory)."""
++        use_path = "/etc/portage/package.use"
++        
++        try:
++            target_use_path = libcalamares.globalstorage.value("rootMountPoint") + use_path
++            
++            if not os.path.isdir(target_use_path):
++                libcalamares.utils.debug(f"{target_use_path} is not a directory, skipping USE flag setup")
++                return
++            
++            use_file = os.path.join(target_use_path, "00-calamares.package.use")
++            
++            with open(use_file, 'w') as f:
++                f.write("# Generated by Calamares gentoopkg module\n")
++                for package, flags in self.package_use.items():
++                    f.write(f"{package} {flags}\n")
++            
++            libcalamares.utils.debug(f"Created {use_file} with {len(self.package_use)} entries")
++        except Exception as e:
++            libcalamares.utils.warning(f"Could not setup package.use: {e}")
++    
++    def _setup_accept_keywords(self):
++        """Setup package.accept_keywords file for testing packages."""
++        keywords_dir = "/etc/portage/package.accept_keywords"
++        keywords_file = os.path.join(keywords_dir, "calamares-install")
++        
++        try:
++            target_keywords_dir = libcalamares.globalstorage.value("rootMountPoint") + keywords_dir
++            os.makedirs(target_keywords_dir, exist_ok=True)
++            
++            target_keywords_file = libcalamares.globalstorage.value("rootMountPoint") + keywords_file
++            with open(target_keywords_file, 'w') as f:
++                f.write("# Generated by Calamares gentoopkg module\n")
++                for package in self.accept_keywords:
++                    f.write(f"{package} ~amd64\n")
++            
++            libcalamares.utils.debug(f"Created {target_keywords_file} with {len(self.accept_keywords)} entries")
++        except Exception as e:
++            libcalamares.utils.warning(f"Could not setup package.accept_keywords: {e}")
++
++    def install(self, pkgs, from_local=False):
++        """Install packages using emerge."""
++        command = ["emerge", "--ask=n", "--verbose=y"]
++        
++        if from_local:
++            command.extend(pkgs)
++        else:
++            command.extend(pkgs)
++        
++        if self.skip_unavailable:
++            # Use --keep-going to continue even if some packages fail
++            command.append("--keep-going")
++        
++        check_target_env_call(command)
++
++    def remove(self, pkgs):
++        """Remove packages using emerge."""
++        command = ["emerge", "--ask=n", "--verbose=y", "--unmerge"]
++        command.extend(pkgs)
++        
++        if self.skip_unavailable:
++            # Use --keep-going for removals too
++            command.append("--keep-going")
++        
++        check_target_env_call(command)
++
++    def update_db(self):
++        """Sync the Portage tree using the configured method."""
++        if self.sync_method == "none":
++            libcalamares.utils.debug("Skipping Portage tree sync (sync_method=none)")
++            return
++        
++        if self.sync_method == "webrsync":
++            # Try emerge-webrsync first (faster, uses snapshots)
++            try:
++                libcalamares.utils.debug("Syncing Portage tree with emerge-webrsync...")
++                check_target_env_call(["emerge-webrsync", "-q"])
++                return
++            except subprocess.CalledProcessError as e:
++                libcalamares.utils.warning(f"emerge-webrsync failed (exit code {e.returncode}), trying emerge --sync as fallback...")
++        
++        if self.sync_method == "sync" or self.sync_method == "webrsync":
++            # Use regular sync (either explicitly requested or as fallback)
++            libcalamares.utils.debug("Syncing Portage tree with emerge --sync...")
++            check_target_env_call(["emerge", "--sync", "--quiet"])
++        else:
++            raise ValueError(f"Unknown sync_method: {self.sync_method}")
++
++    def update_system(self):
++        """Update the system packages."""
++        if self.gentoo_world_update:
++            check_target_env_call(["emerge", "--ask=n", "--verbose=y", "--update", "--deep", "--newuse", "@world"])
++        else:
++            check_target_env_call(["emerge", "--ask=n", "--verbose=y", "--update", "@system"])
++
++    def run(self, script):
++        """Run a custom script."""
++        if script != "":
++            check_target_env_call(script.split(" "))
++
++    def install_package(self, packagedata, from_local=False):
++        """Install a single package with optional pre/post scripts."""
++        if isinstance(packagedata, str):
++            if self.skip_unavailable:
++                try:
++                    self.install([packagedata], from_local=from_local)
++                except subprocess.CalledProcessError:
++                    libcalamares.utils.warning(f"Could not install package {packagedata}")
++            else:
++                self.install([packagedata], from_local=from_local)
++        else:
++            self.run(packagedata.get("pre-script", ""))
++            if self.skip_unavailable:
++                try:
++                    self.install([packagedata["package"]], from_local=from_local)
++                except subprocess.CalledProcessError:
++                    libcalamares.utils.warning(f"Could not install package {packagedata['package']}")
++            else:
++                self.install([packagedata["package"]], from_local=from_local)
++            self.run(packagedata.get("post-script", ""))
++
++    def remove_package(self, packagedata):
++        """Remove a single package with optional pre/post scripts."""
++        if isinstance(packagedata, str):
++            if self.skip_unavailable:
++                try:
++                    self.remove([packagedata])
++                except subprocess.CalledProcessError:
++                    libcalamares.utils.warning(f"Could not remove package {packagedata}")
++            else:
++                self.remove([packagedata])
++        else:
++            self.run(packagedata.get("pre-script", ""))
++            if self.skip_unavailable:
++                try:
++                    self.remove([packagedata["package"]])
++                except subprocess.CalledProcessError:
++                    libcalamares.utils.warning(f"Could not remove package {packagedata['package']}")
++            else:
++                self.remove([packagedata["package"]])
++            self.run(packagedata.get("post-script", ""))
++
++    def operation_install(self, package_list, from_local=False):
++        """Install a list of packages."""
++        if self.skip_unavailable:
++            for package in package_list:
++                self.install_package(package, from_local=from_local)
++        else:
++            if all([isinstance(x, str) for x in package_list]):
++                self.install(package_list, from_local=from_local)
++            else:
++                for package in package_list:
++                    self.install_package(package, from_local=from_local)
++
++    def operation_try_install(self, package_list):
++        """Install packages with error tolerance (like skip_unavailable=true)."""
++        for package in package_list:
++            try:
++                self.install_package(package)
++            except subprocess.CalledProcessError:
++                libcalamares.utils.warning("Could not install package %s" % package)
++
++    def operation_remove(self, package_list):
++        """Remove a list of packages."""
++        if self.skip_unavailable:
++            for package in package_list:
++                self.remove_package(package)
++        else:
++            if all([isinstance(x, str) for x in package_list]):
++                self.remove(package_list)
++            else:
++                for package in package_list:
++                    self.remove_package(package)
++
++    def operation_try_remove(self, package_list):
++        """Remove packages with error tolerance."""
++        for package in package_list:
++            try:
++                self.remove_package(package)
++            except subprocess.CalledProcessError:
++                libcalamares.utils.warning("Could not remove package %s" % package)
++
++
++def subst_locale(plist):
++    """
++    Returns a locale-aware list of packages, based on @p plist.
++    Package names that contain LOCALE are localized with the
++    BCP47 name of the chosen system locale; if the system
++    locale is 'en' (e.g. English, US) then these localized
++    packages are dropped from the list.
++    """
++    locale = libcalamares.globalstorage.value("locale")
++    if not locale:
++        locale = "en"
++
++    ret = []
++    for packagedata in plist:
++        if isinstance(packagedata, str):
++            packagename = packagedata
++        else:
++            packagename = packagedata["package"]
++
++        if locale != "en":
++            packagename = Template(packagename).safe_substitute(LOCALE=locale)
++        elif 'LOCALE' in packagename:
++            packagename = None
++
++        if packagename is not None:
++            if isinstance(packagedata, str):
++                packagedata = packagename
++            else:
++                packagedata["package"] = packagename
++
++            ret.append(packagedata)
++
++    return ret
++
++
++def run_operations(pkgman, entry):
++    """
++    Call package manager with suitable parameters for the given package actions.
++    """
++    global group_packages, completed_packages, mode_packages
++
++    for key in entry.keys():
++        package_list = subst_locale(entry[key])
++        group_packages = len(package_list)
++        if key == "install":
++            _change_mode(INSTALL)
++            pkgman.operation_install(package_list)
++        elif key == "try_install":
++            _change_mode(INSTALL)
++            pkgman.operation_try_install(package_list)
++        elif key == "remove":
++            _change_mode(REMOVE)
++            pkgman.operation_remove(package_list)
++        elif key == "try_remove":
++            _change_mode(REMOVE)
++            pkgman.operation_try_remove(package_list)
++        elif key == "localInstall":
++            _change_mode(INSTALL)
++            pkgman.operation_install(package_list, from_local=True)
++        elif key == "source":
++            libcalamares.utils.debug("Package-list from {!s}".format(entry[key]))
++        else:
++            libcalamares.utils.warning("Unknown package-operation key {!s}".format(key))
++        completed_packages += len(package_list)
++        libcalamares.job.setprogress(completed_packages * 1.0 / total_packages)
++        libcalamares.utils.debug("Pretty name: {!s}, setting progress..".format(pretty_name()))
++
++    group_packages = 0
++    _change_mode(None)
++
++
++def run():
++    """
++    Main entry point for the gentoopkg module.
++    Installs/removes packages using Gentoo's Portage system with additional
++    Gentoo-specific features.
++    """
++    global mode_packages, total_packages, completed_packages, group_packages
++
++    pkgman = GentooPackageManager()
++
++    skip_this = libcalamares.job.configuration.get("skip_if_no_internet", False)
++    if skip_this and not libcalamares.globalstorage.value("hasInternet"):
++        libcalamares.utils.warning("Package installation has been skipped: no internet")
++        return None
++
++    update_db = libcalamares.job.configuration.get("update_db", False)
++    if update_db and libcalamares.globalstorage.value("hasInternet"):
++        libcalamares.utils.debug("Starting Portage tree sync...")
++        try:
++            pkgman.update_db()
++            libcalamares.utils.debug("Portage tree sync completed successfully")
++        except subprocess.CalledProcessError as e:
++            libcalamares.utils.warning(str(e))
++            libcalamares.utils.debug("stdout:" + str(e.stdout))
++            libcalamares.utils.debug("stderr:" + str(e.stderr))
++            # If skip_unavailable is enabled, don't fail completely on sync errors
++            if not pkgman.skip_unavailable:
++                return (_("Package Manager error"),
++                        _("The package manager could not prepare updates. The command <pre>{!s}</pre> returned error code {!s}.")
++                        .format(e.cmd, e.returncode))
++            else:
++                libcalamares.utils.warning("Portage sync failed but continuing due to skip_unavailable setting")
++
++    update_system = libcalamares.job.configuration.get("update_system", False)
++    if update_system and libcalamares.globalstorage.value("hasInternet"):
++        try:
++            pkgman.update_system()
++        except subprocess.CalledProcessError as e:
++            libcalamares.utils.warning(str(e))
++            libcalamares.utils.debug("stdout:" + str(e.stdout))
++            libcalamares.utils.debug("stderr:" + str(e.stderr))
++            return (_("Package Manager error"),
++                    _("The package manager could not update the system. The command <pre>{!s}</pre> returned error code {!s}.")
++                    .format(e.cmd, e.returncode))
++
++    operations = libcalamares.job.configuration.get("operations", [])
++    if libcalamares.globalstorage.contains("packageOperations"):
++        operations += libcalamares.globalstorage.value("packageOperations")
++
++    mode_packages = None
++    total_packages = 0
++    completed_packages = 0
++    for op in operations:
++        for packagelist in op.values():
++            total_packages += len(subst_locale(packagelist))
++
++    if not total_packages:
++        return None
++
++    for entry in operations:
++        group_packages = 0
++        libcalamares.utils.debug(pretty_name())
++        try:
++            run_operations(pkgman, entry)
++        except subprocess.CalledProcessError as e:
++            if not pkgman.skip_unavailable:
++                libcalamares.utils.warning(str(e))
++                libcalamares.utils.debug("stdout:" + str(e.stdout))
++                libcalamares.utils.debug("stderr:" + str(e.stderr))
++                return (_("Package Manager error"),
++                        _("The package manager could not make changes to the installed system. The command <pre>{!s}</pre> returned error code {!s}.")
++                        .format(e.cmd, e.returncode))
++            else:
++                # Just log the error and continue
++                libcalamares.utils.warning(f"Package operation failed but continuing due to skip_unavailable: {e}")
++
++    mode_packages = None
++    libcalamares.job.setprogress(1.0)
++
++    return None
+diff --git a/src/modules/gentoopkg/module.desc b/src/modules/gentoopkg/module.desc
+new file mode 100644
+index 0000000000..57caf17c79
+--- /dev/null
++++ b/src/modules/gentoopkg/module.desc
+@@ -0,0 +1,9 @@
++# SPDX-FileCopyrightText: no
++# SPDX-License-Identifier: CC0-1.0
++# Module metadata file for gentoopkg jobmodule
++# Syntax is YAML 1.2
++---
++type:       "job"
++name:       "gentoopkg"
++interface:  "python"
++script:     "main.py"
+diff --git a/src/modules/gentoopkg/test-skip-unavailable.conf b/src/modules/gentoopkg/test-skip-unavailable.conf
+new file mode 100644
+index 0000000000..a58c1eb41b
+--- /dev/null
++++ b/src/modules/gentoopkg/test-skip-unavailable.conf
+@@ -0,0 +1,32 @@
++# Test configuration for gentoopkg module
++# This configuration demonstrates the skip_unavailable feature
++---
++
++skip_unavailable: true
++
++skip_if_no_internet: false
++update_db: false
++update_system: false
++gentoo_world_update: false
++
++accept_keywords:
++  - "app-editors/vim"
++
++operations:
++  - install:
++    - app-editors/vim
++    - sys-process/htop
++    - totally-fake-package-that-does-not-exist
++    - another-nonexistent-package
++  
++  - try_install:
++    - fake-package-for-testing
++    - non-existent-category/fake-package
++  
++  - remove:
++    - games-misc/fortune-mod
++    - fake-package-to-remove
++  
++  - try_install:
++    - dev-lang/python[sqlite]
++    - =sys-kernel/gentoo-sources-6.1*
+diff --git a/src/modules/stagechoose/CMakeLists.txt b/src/modules/stagechoose/CMakeLists.txt
+new file mode 100644
+index 0000000000..f1ee399f9e
+--- /dev/null
++++ b/src/modules/stagechoose/CMakeLists.txt
+@@ -0,0 +1,13 @@
++calamares_add_plugin(stagechoose
++    TYPE viewmodule
++    EXPORT_MACRO PLUGINDLLEXPORT_PRO
++    SOURCES
++        Config.cpp
++        StageChooseViewStep.cpp
++        StageChoosePage.cpp
++        SetStage3Job.cpp
++        StageFetcher.cpp
++    UI
++        StageChoosePage.ui
++    SHARED_LIB
++)
+diff --git a/src/modules/stagechoose/Config.cpp b/src/modules/stagechoose/Config.cpp
+new file mode 100644
+index 0000000000..ac5feb3960
+--- /dev/null
++++ b/src/modules/stagechoose/Config.cpp
+@@ -0,0 +1,128 @@
++/* === This file is part of Calamares - <https://calamares.io> ===
++ *
++ *   SPDX-FileCopyrightText: 2019-2020 Adriaan de Groot <groot@kde.org>
++ *   SPDX-License-Identifier: GPL-3.0-or-later
++ *
++ *   Calamares is Free Software: see the License-Identifier above.
++ *
++ */
++
++#include "Config.h"
++#include "locale/Global.h"
++#include "JobQueue.h"
++#include "GlobalStorage.h"
++#include "StageFetcher.h"
++
++#include <QDateTime>
++
++Config::Config(QObject* parent)
++    : QObject(parent)
++    , m_fetcher(new StageFetcher(this))
++{
++    connect(m_fetcher, &StageFetcher::variantsFetched, this, [this](const QStringList &variants) {
++        emit variantsReady(variants);
++    });
++
++    connect(m_fetcher, &StageFetcher::tarballFetched, this, [this](const QString &tarball) {
++        updateTarball(tarball);
++    });
++
++    connect(m_fetcher, &StageFetcher::fetchStatusChanged,this,&Config::fetchStatusChanged);
++    connect(m_fetcher, &StageFetcher::fetchError,this,&Config::fetchError);
++    /// change Config into function handles the fetcher signals
++    m_fetcher->setMirrorBase(m_mirrorBase);
++}
++
++QList<ArchitectureInfo> Config::availableArchitecturesInfo()
++{
++    QList<ArchitectureInfo> list;
++    list << ArchitectureInfo{ QStringLiteral("alpha"),   QStringLiteral("Digital Alpha (alpha)") }
++         << ArchitectureInfo{ QStringLiteral("amd64"),   QStringLiteral("64-bit Intel/AMD (amd64)") }
++         << ArchitectureInfo{ QStringLiteral("x86"),     QStringLiteral("32-bit Intel/AMD (x86)") }
++         << ArchitectureInfo{ QStringLiteral("arm"),     QStringLiteral("ARM 32-bit (arm)") }
++         << ArchitectureInfo{ QStringLiteral("arm64"),   QStringLiteral("ARM 64-bit (arm64)") }
++         << ArchitectureInfo{ QStringLiteral("hppa"),    QStringLiteral("HPPA (hppa)") }
++         << ArchitectureInfo{ QStringLiteral("ia64"),    QStringLiteral("Intel Itanium (ia64)") }
++         << ArchitectureInfo{ QStringLiteral("loong"),   QStringLiteral("Loongson MIPS-based (loong)") }
++         << ArchitectureInfo{ QStringLiteral("m68k"),    QStringLiteral("Motorola 68k (m68k)") }
++         << ArchitectureInfo{ QStringLiteral("mips"),    QStringLiteral("MIPS 32/64-bit (mips)") }
++         << ArchitectureInfo{ QStringLiteral("ppc"),     QStringLiteral("PowerPC (ppc)") }
++         << ArchitectureInfo{ QStringLiteral("riscv"),   QStringLiteral("RISC-V 32/64-bit (riscv)") }
++         << ArchitectureInfo{ QStringLiteral("s390"),    QStringLiteral("IBM System z (s390)") }
++         << ArchitectureInfo{ QStringLiteral("sh"),      QStringLiteral("SuperH legacy (sh)") }
++         << ArchitectureInfo{ QStringLiteral("sparc"),   QStringLiteral("SPARC 64-bit (sparc)") }
++         << ArchitectureInfo{ QStringLiteral("livecd"), QStringLiteral("Live CD (unsafe)") };
++    return list;
++}
++
++void Config::availableStagesFor(const QString& arch)
++{
++    m_selectedArch = arch;
++    m_selectedVariant.clear();
++    if(arch == "livecd"){
++        m_fetcher->cancelOngoingRequest();
++        m_selectedTarball = "livecd";
++        emit tarballReady(m_selectedTarball);
++        emit fetchStatusChanged("LiveCD mode");
++        emit validityChanged(isValid());
++        return;
++    }
++    else{
++        m_selectedTarball.clear();
++        m_fetcher->fetchVariants(arch);
++    }
++}
++
++void Config::selectVariant(const QString& variant)
++{
++    m_selectedVariant = variant;
++
++    m_fetcher->fetchLatestTarball(m_selectedArch,variant);
++}
++
++QString Config::selectedStage3() const
++{
++    if(!m_selectedTarball.isEmpty())
++        return m_selectedTarball;
++
++    return "No tar fetched";
++}
++
++bool Config::isValid() const
++{
++    return (!m_selectedTarball.isEmpty()) ;
++}
++
++void Config::setMirrorBase(const QString& mirror){
++    QString base = mirror.trimmed();
++    while(base.endsWith('/')) base.chop(1);
++
++    if(base.isEmpty()) base = QStringLiteral("http://distfiles.gentoo.org/releases");
++
++    if(base == m_mirrorBase) return;
++
++    m_mirrorBase = base;
++    if(m_fetcher) m_fetcher->setMirrorBase(m_mirrorBase);
++}
++
++void Config::updateTarball(const QString &tarball){
++    m_selectedTarball = tarball;
++    emit tarballReady(tarball);
++    emit validityChanged(isValid());
++}
++
++void Config::updateGlobalStorage()
++{
++    Calamares::GlobalStorage* gs = Calamares::JobQueue::instance()->globalStorage();
++
++    if(m_selectedArch == "livecd")
++        gs->insert("GENTOO_LIVECD","yes");
++    else{
++        gs->insert("GENTOO_LIVECD","no");
++        gs->insert( "BASE_DOWNLOAD_URL",  QString("%1/%2/autobuilds/%3/").arg(m_mirrorBase,m_selectedArch,m_selectedVariant));
++        gs->insert( "FINAL_DOWNLOAD_URL",  QString("%1/%2/autobuilds/%3/%4").arg(m_mirrorBase,m_selectedArch,m_selectedVariant,m_selectedTarball));
++        gs->insert( "STAGE_NAME_TAR", m_selectedTarball );
++    }
++}
++
++
+diff --git a/src/modules/stagechoose/Config.h b/src/modules/stagechoose/Config.h
+new file mode 100644
+index 0000000000..6ba116ed7e
+--- /dev/null
++++ b/src/modules/stagechoose/Config.h
+@@ -0,0 +1,65 @@
++/* === This file is part of Calamares - <https://calamares.io> ===
++ *
++ *   SPDX-FileCopyrightText: 2019-2020 Adriaan de Groot <groot@kde.org>
++ *   SPDX-License-Identifier: GPL-3.0-or-later
++ *
++ *   Calamares is Free Software: see the License-Identifier above.
++ *
++ */
++
++#ifndef CONFIG_H
++#define CONFIG_H
++
++#include "StageFetcher.h"
++#include <QObject>
++#include <QPair>
++#include <QString>
++#include <QList>
++
++struct ArchitectureInfo
++{
++    QString name;
++    QString description;
++
++    ArchitectureInfo() = default;
++    ArchitectureInfo(const QString& n, const QString& d):
++    name(n),description(d){}
++};
++
++class Config : public QObject
++{
++    Q_OBJECT
++
++public:
++    explicit Config(QObject* parent = nullptr);
++
++    QList<ArchitectureInfo> availableArchitecturesInfo();
++    QStringList availableArchitectures();
++    void availableStagesFor(const QString& architecture);
++    void selectVariant(const QString& variantKey);
++
++    QString selectedStage3() const;
++    bool isValid() const;
++
++    void updateGlobalStorage();
++    void updateTarball(const QString &tarball);
++    void setMirrorBase(const QString& mirror);
++    QString mirrorBase();
++
++signals:
++    void variantsReady(const QStringList& variants);
++    void tarballReady(const QString& tarball);
++    void fetchStatusChanged(const QString& status);
++    void fetchError(const QString& error);
++    void validityChanged(bool validity);
++
++private:
++    StageFetcher* m_fetcher;
++    QString m_mirrorBase {QStringLiteral("http://distfiles.gentoo.org/releases")};
++    QString m_selectedArch;
++    QString m_selectedVariant;
++    QString m_selectedTarball;
++};
++
++#endif // CONFIG_H
++
+diff --git a/src/modules/stagechoose/SetStage3Job.cpp b/src/modules/stagechoose/SetStage3Job.cpp
+new file mode 100644
+index 0000000000..086085862a
+--- /dev/null
++++ b/src/modules/stagechoose/SetStage3Job.cpp
+@@ -0,0 +1,61 @@
++#include "SetStage3Job.h"
++
++#include "utils/Logger.h"
++#include <QFile>
++#include <QTextStream>
++#include <QRegularExpression>
++
++SetStage3Job::SetStage3Job(const QString& tarballName)
++    : m_tarballName(tarballName)
++{
++}
++
++QString SetStage3Job::prettyName() const
++{
++    return QString("Write selected Gentoo Stage3 to config: %1").arg(m_tarballName);
++}
++
++Calamares::JobResult SetStage3Job::exec()
++{
++    if(m_tarballName.isEmpty()){
++        return Calamares::JobResult::error(
++            "No stage3 tarball selected.","Stage3 tarball name is empty."
++        );
++    }
++
++    QString configPath = "/etc/calamares.conf";
++    QFile file(configPath);
++    QString contents;
++
++    if (file.exists()) {
++        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
++            return Calamares::JobResult::error(
++                "Failed to open Calamares config file for reading.",
++                configPath);
++        }
++        QTextStream in(&file);
++        contents = in.readAll();
++        file.close();
++    }
++
++    QString stage3Line = QString("stage3 = %1").arg(m_tarballName);
++
++    if (contents.contains(QRegularExpression(R"(stage3\s*=)"))) {
++        contents.replace(QRegularExpression(R"(stage3\s*=.*)"), stage3Line);
++    } else {
++        contents.append("\n" + stage3Line + "\n");
++    }
++
++    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
++        return Calamares::JobResult::error(
++            "Failed to open Calamares config file for writing.",
++            configPath);
++    }
++
++    QTextStream out(&file);
++    out << contents;
++    file.close();
++
++    cDebug() << "Wrote stage3 tarball to config:" << m_tarballName;
++    return Calamares::JobResult::ok();
++}
+diff --git a/src/modules/stagechoose/SetStage3Job.h b/src/modules/stagechoose/SetStage3Job.h
+new file mode 100644
+index 0000000000..edea12ce2c
+--- /dev/null
++++ b/src/modules/stagechoose/SetStage3Job.h
+@@ -0,0 +1,22 @@
++#ifndef SETSTAGE3JOB_H
++#define SETSTAGE3JOB_H
++
++#include <Job.h>
++#include <QString>
++
++/**
++ * @brief A job to write the selected Stage3 tarball name to /etc/calamares.conf
++ */
++class SetStage3Job : public Calamares::Job
++{
++public:
++    explicit SetStage3Job(const QString& tarballName);
++
++    QString prettyName() const override;
++    Calamares::JobResult exec() override;
++
++private:
++    QString m_tarballName;
++};
++
++#endif // SETSTAGE3JOB_H
+diff --git a/src/modules/stagechoose/StageChoosePage.cpp b/src/modules/stagechoose/StageChoosePage.cpp
+new file mode 100644
+index 0000000000..5bf3eacb5e
+--- /dev/null
++++ b/src/modules/stagechoose/StageChoosePage.cpp
+@@ -0,0 +1,145 @@
++/* === This file is part of Calamares - <https://calamares.io> ===
++ *
++ *   SPDX-FileCopyrightText: 2014-2015 Teo Mrnjavac <teo@kde.org>
++ *   SPDX-FileCopyrightText: 2015 Anke Boersma <demm@kaosx.us>
++ *   SPDX-FileCopyrightText: 2017-2019 Adriaan de Groot <groot@kde.org>
++ *   SPDX-License-Identifier: GPL-3.0-or-later
++ *
++ *   Calamares is Free Software: see the License-Identifier above.
++ *
++ */
++#include "StageChoosePage.h"
++#include "Config.h"
++#include "ui_StageChoosePage.h"
++
++#include <QComboBox>
++#include <QLabel>
++#include <QTimer>
++#include <QPushButton>
++
++StageChoosePage::StageChoosePage(Config* config, QWidget* parent)
++    : QWidget(parent)
++    , ui(new Ui::StageChoosePage)
++    , m_config(config)
++{
++    ui->setupUi(this);
++
++    connect(ui->architectureComboBox, QOverload<int>::of(&QComboBox::activated),
++            this, &StageChoosePage::onArchitectureChanged);
++    connect(ui->variantComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
++            this, &StageChoosePage::onVariantChanged);
++
++    connect(ui->mirrorLineEdit, &QLineEdit::editingFinished, this, &StageChoosePage::onMirrorChanged);
++    connect(ui->restartFetcherButton, &QPushButton::clicked, this, &StageChoosePage::onRestartFetcherClicked);
++
++    if(m_config){
++        connect(m_config, &Config::fetchStatusChanged,this,&StageChoosePage::setFetcherStatus);
++        connect(m_config, &Config::fetchError,this,[this](const QString& error){setFetcherStatus("Error" + error);showRestartFetcherButton(true);});
++        connect(m_config, &Config::variantsReady, this, &StageChoosePage::whenVariantsReady);
++        connect(m_config, &Config::tarballReady, this, [this](const QString&){updateSelectedTarballLabel();});
++    }
++
++    setFetcherStatus("Idle");
++    updateSelectedTarballLabel();
++    showRestartFetcherButton(false);
++
++    populateArchs();
++}
++
++void StageChoosePage::onMirrorChanged()
++{
++    if(!m_config) return;
++    QString mirror = ui->mirrorLineEdit->text().trimmed();
++    m_config->setMirrorBase(mirror);
++}
++
++void StageChoosePage::setFetcherStatus(const QString& status)
++{
++    ui->fetcherStatusLabel->setText("Status: " + status);
++}
++
++void StageChoosePage::showRestartFetcherButton(bool visible)
++{
++    ui->restartFetcherButton->setVisible(false);
++    // To implement
++}
++
++void StageChoosePage::onRestartFetcherClicked(){
++    // Logic here
++    setFetcherStatus("Restarting...");
++    showRestartFetcherButton(false);
++}
++
++void StageChoosePage::populateArchs()
++{
++    if (!m_config)
++        return;
++
++    const auto archs = m_config->availableArchitecturesInfo();
++    ui->architectureComboBox->clear();
++    for(const auto& arch : archs){
++        ui->architectureComboBox->addItem(arch.description,arch.name);
++    }
++    ui->architectureComboBox->setCurrentIndex(-1);
++}
++
++void StageChoosePage::onArchitectureChanged(int index)
++{
++    if (!m_config)
++        return;
++
++    const QString archKey = ui->architectureComboBox->itemData(index).toString();
++    ui->variantComboBox->clear();
++
++    m_config->availableStagesFor(archKey);
++
++    if(archKey == "livecd"){
++        ui->variantComboBox->setVisible(false);
++        ui->variantLabel->setVisible(false);
++
++        // setFetcherStatus("LiveCD mode");
++        // m_config->updateTarball("livecd");
++        showRestartFetcherButton(false);
++        return;
++    }
++    else{
++        ui->variantComboBox->setVisible(true);
++        ui->variantLabel->setVisible(true);
++    }
++}
++
++void StageChoosePage::onVariantChanged(int index)
++{
++    if (!m_config)
++        return;
++
++    const QString variantKey = ui->variantComboBox->itemData(index).toString();
++    m_config->selectVariant(variantKey);
++}
++
++void StageChoosePage::whenVariantsReady(const QStringList &stages)
++{
++    ui->variantComboBox->clear();
++
++    for(const QString& stage : stages){
++        ui->variantComboBox->addItem(stage, stage);
++    }
++
++    if(!stages.isEmpty()){
++        ui->variantComboBox->setCurrentIndex(0);
++        onVariantChanged(0);
++    }
++}
++
++void StageChoosePage::updateSelectedTarballLabel()
++{
++    if (!m_config)
++        return;
++
++    ui->selectedTarballLabel->setText("Selected: " + m_config->selectedStage3());
++}
++
++StageChoosePage::~StageChoosePage()
++{
++    delete ui;
++}
+diff --git a/src/modules/stagechoose/StageChoosePage.h b/src/modules/stagechoose/StageChoosePage.h
+new file mode 100644
+index 0000000000..65e6633184
+--- /dev/null
++++ b/src/modules/stagechoose/StageChoosePage.h
+@@ -0,0 +1,51 @@
++/* === This file is part of Calamares - <https://calamares.io> ===
++ *
++ *   SPDX-FileCopyrightText: 2014 Teo Mrnjavac <teo@kde.org>
++ *   SPDX-FileCopyrightText: 2019 Adriaan de Groot <groot@kde.org>
++ *   SPDX-License-Identifier: GPL-3.0-or-later
++ *
++ *   Calamares is Free Software: see the License-Identifier above.
++ *
++ */
++
++#ifndef STAGECHOOSEPAGE_H
++#define STAGECHOOSEPAGE_H
++
++#include <QWidget>
++
++class QComboBox;
++class QLabel;
++class Config;
++
++namespace Ui {
++class StageChoosePage;
++}
++
++class StageChoosePage : public QWidget
++{
++    Q_OBJECT
++
++public:
++    explicit StageChoosePage( Config* config, QWidget* parent = nullptr);
++    ~StageChoosePage() override;
++
++    void populateArchs();
++    void setFetcherStatus(const QString& status);
++    void showRestartFetcherButton(bool visible);
++    void onRestartFetcherClicked();
++    void whenVariantsReady(const QStringList &stages);
++
++    void onMirrorChanged();
++
++private slots:
++    void onArchitectureChanged(int index);
++    void onVariantChanged(int index);
++    void updateSelectedTarballLabel();
++
++private:
++    Ui::StageChoosePage* ui;
++    Config* m_config;
++};
++
++#endif // STAGECHOOSEPAGE_H
++
+diff --git a/src/modules/stagechoose/StageChoosePage.ui b/src/modules/stagechoose/StageChoosePage.ui
+new file mode 100644
+index 0000000000..f78482abd0
+--- /dev/null
++++ b/src/modules/stagechoose/StageChoosePage.ui
+@@ -0,0 +1,172 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<ui version="4.0">
++ <class>StageChoosePage</class>
++ <widget class="QWidget" name="StageChoosePage">
++  <layout class="QVBoxLayout" name="outerVerticalLayout">
++
++   <item>
++    <spacer name="verticalSpacerTop">
++     <property name="orientation">
++      <enum>Qt::Vertical</enum>
++     </property>
++     <property name="sizeType">
++      <enum>QSizePolicy::Expanding</enum>
++     </property>
++     <property name="sizeHint" stdset="0">
++      <size>
++       <width>20</width>
++       <height>40</height>
++      </size>
++     </property>
++    </spacer>
++   </item>
++
++   <item>
++    <layout class="QHBoxLayout" name="horizontalCenteringLayout">
++     <item>
++      <spacer name="horizontalSpacerLeft">
++       <property name="orientation">
++        <enum>Qt::Horizontal</enum>
++       </property>
++       <property name="sizeType">
++        <enum>QSizePolicy::Expanding</enum>
++       </property>
++      </spacer>
++     </item>
++
++     <item>
++      <layout class="QVBoxLayout" name="verticalLayout">
++        <item>
++         <widget class="QLabel" name="mirrorInfoLabel">
++          <property name="text">
++            <string>If you leave mirror link blank, it will choose the default option.</string>
++          </property>
++            <property name="wordWrap">
++            <bool>true</bool>
++          </property>
++         </widget>
++        </item>
++        
++       <item>
++        <layout class="QHBoxLayout" name="mirrorLayout">
++         <item>
++          <widget class="QLabel" name="mirrorLabel">
++           <property name="text">
++            <string>Mirror Link:</string>
++           </property>
++          </widget>
++         </item>
++         <item>
++          <widget class="QLineEdit" name="mirrorLineEdit">
++           <property name="placeholderText">
++            <string>https://distfiles.gentoo.org/releases/</string>
++           </property>
++          </widget>
++         </item>
++        </layout>
++       </item>
++
++       <item>
++        <layout class="QHBoxLayout" name="topLabelsLayout">
++         <item>
++          <widget class="QLabel" name="archLabel">
++           <property name="text">
++            <string>Select Architecture:</string>
++           </property>
++          </widget>
++         </item>
++         <item>
++          <widget class="QLabel" name="variantLabel">
++           <property name="text">
++            <string>Select Stage3 Option:</string>
++           </property>
++          </widget>
++         </item>
++        </layout>
++       </item>
++
++       <item>
++        <layout class="QHBoxLayout" name="comboBoxesLayout">
++         <item>
++          <widget class="QComboBox" name="architectureComboBox">
++           <property name="minimumSize">
++            <size><width>200</width><height>25</height></size>
++           </property>
++           <property name="maximumSize">
++            <size><width>200</width><height>25</height></size>
++           </property>
++          </widget>
++         </item>
++         <item>
++          <widget class="QComboBox" name="variantComboBox">
++           <property name="minimumSize">
++            <size><width>200</width><height>25</height></size>
++           </property>
++           <property name="maximumSize">
++            <size><width>200</width><height>25</height></size>
++           </property>
++          </widget>
++         </item>
++        </layout>
++       </item>
++
++       <item>
++        <widget class="QLabel" name="selectedTarballLabel">
++         <property name="text">
++          <string>Selected: </string>
++         </property>
++        </widget>
++       </item>
++
++       <item>
++        <widget class="QLabel" name="fetcherStatusLabel">
++         <property name="text">
++          <string>Status: Idle</string>
++         </property>
++         <property name="alignment">
++          <set>Qt::AlignCenter</set>
++         </property>
++        </widget>
++       </item>
++
++       <item>
++        <widget class="QPushButton" name="restartFetcherButton">
++         <property name="text">
++          <string>Restart Fetcher</string>
++         </property>
++         <property name="visible">
++          <bool>false</bool>
++         </property>
++        </widget>
++       </item>
++      </layout>
++     </item>
++
++     <item>
++      <spacer name="horizontalSpacerRight">
++       <property name="orientation">
++        <enum>Qt::Horizontal</enum>
++       </property>
++       <property name="sizeType">
++        <enum>QSizePolicy::Expanding</enum>
++       </property>
++      </spacer>
++     </item>
++    </layout>
++   </item>
++
++   <item>
++    <spacer name="verticalSpacerBottom">
++     <property name="orientation">
++      <enum>Qt::Vertical</enum>
++     </property>
++     <property name="sizeType">
++      <enum>QSizePolicy::Expanding</enum>
++     </property>
++    </spacer>
++   </item>
++  </layout>
++ </widget>
++ <resources/>
++ <connections/>
++</ui>
+diff --git a/src/modules/stagechoose/StageChooseViewStep.cpp b/src/modules/stagechoose/StageChooseViewStep.cpp
+new file mode 100644
+index 0000000000..24857f07f0
+--- /dev/null
++++ b/src/modules/stagechoose/StageChooseViewStep.cpp
+@@ -0,0 +1,80 @@
++/* === This file is part of Calamares - <https://calamares.io> ===
++ *
++ *   SPDX-FileCopyrightText: 2014-2015 Teo Mrnjavac <teo@kde.org>
++ *   SPDX-FileCopyrightText: 2018 Adriaan de Groot <groot@kde.org>
++ *   SPDX-License-Identifier: GPL-3.0-or-later
++ *
++ *   Calamares is Free Software: see the License-Identifier above.
++ *
++ */
++
++#include "StageChooseViewStep.h"
++
++#include "Config.h"
++#include "StageChoosePage.h"
++#include "SetStage3Job.h"
++
++#include "utils/Logger.h"
++
++CALAMARES_PLUGIN_FACTORY_DEFINITION(StageChooseViewStepFactory, registerPlugin<StageChooseViewStep>();)
++
++StageChooseViewStep::StageChooseViewStep(QObject* parent)
++    : Calamares::ViewStep(parent)
++    , m_config(new Config(this))
++    , m_widget(new StageChoosePage(m_config))
++{
++   connect(m_config,&Config::validityChanged,this,[this](bool valid){emit nextStatusChanged(valid);});
++}
++
++StageChooseViewStep::~StageChooseViewStep() 
++{
++    if ( m_widget && m_widget->parent() == nullptr )
++    {
++        m_widget->deleteLater();
++    }
++}
++
++QString StageChooseViewStep::prettyName() const
++{
++    return tr("Select Stage");
++}
++
++QWidget* StageChooseViewStep::widget()
++{
++    return m_widget;
++}
++
++bool StageChooseViewStep::isNextEnabled() const
++{
++    return m_config->isValid();
++}
++
++bool StageChooseViewStep::isBackEnabled() const
++{
++    return true;
++}
++
++bool StageChooseViewStep::isAtBeginning() const
++{
++    return true;
++}
++
++bool StageChooseViewStep::isAtEnd() const
++{
++    return true;
++}
++
++void StageChooseViewStep::onLeave()
++{
++    m_config->updateGlobalStorage();
++}
++
++Calamares::JobList StageChooseViewStep::jobs() const
++{
++    Calamares::JobList list;
++    if (m_config->isValid())
++    {
++        list.append(QSharedPointer<SetStage3Job>::create(m_config->selectedStage3()));
++    }
++    return list;
++}
+diff --git a/src/modules/stagechoose/StageChooseViewStep.h b/src/modules/stagechoose/StageChooseViewStep.h
+new file mode 100644
+index 0000000000..d6efed30f4
+--- /dev/null
++++ b/src/modules/stagechoose/StageChooseViewStep.h
+@@ -0,0 +1,53 @@
++/* === This file is part of Calamares - <https://calamares.io> ===
++ *
++ *   SPDX-FileCopyrightText: 2014-2015 Teo Mrnjavac <teo@kde.org>
++ *   SPDX-License-Identifier: GPL-3.0-or-later
++ *
++ *   Calamares is Free Software: see the License-Identifier above.
++ *
++ */
++
++#ifndef STAGECHOOSEVIEWSTEP_H
++#define STAGECHOOSEVIEWSTEP_H
++
++#include <QObject>
++#include <QWidget>
++#include <QString>
++
++#include "DllMacro.h"
++#include "utils/PluginFactory.h"
++#include "viewpages/ViewStep.h"
++
++class StageChoosePage;
++class Config;
++
++class PLUGINDLLEXPORT StageChooseViewStep : public Calamares::ViewStep
++{
++    Q_OBJECT
++
++public:
++    explicit StageChooseViewStep(QObject* parent = nullptr);
++    ~StageChooseViewStep() override;
++
++    QString prettyName() const override;
++
++    QWidget* widget() override;
++
++    bool isNextEnabled() const override;
++    bool isBackEnabled() const override;
++    bool isAtBeginning() const override;
++    bool isAtEnd() const override;
++
++    Calamares::JobList jobs() const override;
++
++    void onLeave() override;
++
++private:
++    Config* m_config;
++    StageChoosePage* m_widget;
++};
++
++CALAMARES_PLUGIN_FACTORY_DECLARATION( StageChooseViewStepFactory )
++
++#endif // STAGECHOOSEVIEWSTEP_H
++
+diff --git a/src/modules/stagechoose/StageFetcher.cpp b/src/modules/stagechoose/StageFetcher.cpp
+new file mode 100644
+index 0000000000..287ab59023
+--- /dev/null
++++ b/src/modules/stagechoose/StageFetcher.cpp
+@@ -0,0 +1,152 @@
++#include "StageFetcher.h"
++
++#include <QNetworkAccessManager>
++#include <QNetworkReply>
++#include <QNetworkRequest>
++#include <QEventLoop>
++#include <QRegularExpression>
++#include <QRegularExpressionMatch>
++#include <QRegularExpressionMatchIterator>
++#include <QStringList>
++
++StageFetcher :: StageFetcher(QObject* parent):QObject(parent)
++{
++}
++
++QString StageFetcher::extractvariantBase(const QString& variant){
++    if(variant.startsWith("current-"))
++        return variant.mid(8);
++    return variant;
++}
++
++void StageFetcher::setMirrorBase(const QString& mirror)
++{
++    QString base = mirror.trimmed();
++    while(base.endsWith('/')) base.chop(1);
++
++    if(base.isEmpty())
++        base = QStringLiteral("http://distfiles.gentoo.org/releases");
++
++    if(!base.endsWith("/releases"))
++        base += "/releases";
++
++    m_mirrorBase = base;
++}
++
++void StageFetcher::cancelOngoingRequest()
++{
++    if(m_currentReply){
++        disconnect(m_currentReply,nullptr,this,nullptr);
++        if(m_currentReply->isRunning())
++            m_currentReply->abort();
++        m_currentReply->deleteLater();
++        m_currentReply = nullptr;
++    }
++}
++
++void StageFetcher::fetchVariants(const QString& arch)
++{
++    cancelOngoingRequest(); 
++    emit fetchStatusChanged("Fetching variants for " + arch + "...");
++
++    QString urlStr = QString("%1/%2/autobuilds/").arg(m_mirrorBase, arch);
++    QUrl url(urlStr);
++    QNetworkRequest request(url);
++
++    QNetworkReply* reply = m_nam.get(request);
++    m_currentReply = reply;
++    connect(reply, &QNetworkReply::finished, this,[this, reply](){onVariantsReplyFinished(reply);});
++}
++
++void StageFetcher::onVariantsReplyFinished(QNetworkReply* reply)
++{
++    if(!reply)
++        return;
++
++    if(reply != m_currentReply){
++        reply->deleteLater();
++        return;
++    }
++
++    QStringList variants;
++    if(reply->error() != QNetworkReply::NoError){
++        emit fetchError(reply->errorString());
++        reply->deleteLater();
++        if(m_currentReply == reply) m_currentReply = nullptr;
++        return;
++    }
++
++    QString html = reply->readAll();
++     if(html.isEmpty())
++        emit variantsFetched(variants);
++
++    QRegularExpression re(R"((current-stage3-[^"/]+)[/])");
++    QRegularExpressionMatchIterator iterator = re.globalMatch(html);
++
++    QStringList seen;
++    while(iterator.hasNext()){
++        QRegularExpressionMatch match = iterator.next();
++        QString variant = match.captured(1);
++        if(!seen.contains(variant)){
++            variants.append(variant);
++            seen.append(variant);
++        }
++    }
++
++    emit variantsFetched(variants);
++    emit fetchStatusChanged("Idle");
++    reply->deleteLater();
++    if(reply == m_currentReply) m_currentReply = nullptr;
++}
++
++void StageFetcher::fetchLatestTarball(const QString& arch, const QString& variant)
++{
++    cancelOngoingRequest();
++    emit fetchStatusChanged("Fetching Tarball for "+ variant +"...");
++    const QString baseUrl = QString("%1/%2/autobuilds/%3/").arg(m_mirrorBase, arch, variant);
++    QUrl url(baseUrl);
++    QNetworkRequest request(url);
++
++    QNetworkReply* reply = m_nam.get(request);
++    m_currentReply = reply;
++    connect(reply, &QNetworkReply::finished, this, [this, reply, variant](){onTarballReplyFinished(reply, variant);});
++}
++
++void StageFetcher::onTarballReplyFinished(QNetworkReply* reply, const QString& variant)
++{
++    if(!reply)
++        return;
++
++    if(reply != m_currentReply){
++        reply->deleteLater();
++        return;
++    }
++
++    QString latest;
++    if(reply->error() != QNetworkReply::NoError){
++        emit fetchError(reply->errorString());
++        reply->deleteLater();
++        if(m_currentReply == reply) m_currentReply = nullptr;
++        return;
++    }
++
++    QString html = reply->readAll();
++    if(html.isEmpty())
++        emit tarballFetched(latest);
++
++    QRegularExpression re(QString("(%1-[\\dTZ]+\\.tar\\.xz)").arg(StageFetcher::extractvariantBase(variant)));
++    QRegularExpressionMatchIterator iterator = re.globalMatch(html);
++
++    while(iterator.hasNext()){
++        QRegularExpressionMatch match = iterator.next();
++        QString filename = match.captured(1);
++        if(filename > latest){
++            latest = filename;
++        }
++    }
++
++    emit tarballFetched(latest);
++    emit fetchStatusChanged("Idle");
++    reply->deleteLater();
++    if(reply == m_currentReply) m_currentReply = nullptr;
++}
+\ No newline at end of file
+diff --git a/src/modules/stagechoose/StageFetcher.h b/src/modules/stagechoose/StageFetcher.h
+new file mode 100644
+index 0000000000..8c97f29b55
+--- /dev/null
++++ b/src/modules/stagechoose/StageFetcher.h
+@@ -0,0 +1,42 @@
++#ifndef STAGEFETCHER_H
++#define STAGEFETCHER_H
++
++#include <QNetworkAccessManager>
++#include <QObject>
++#include <QNetworkReply>
++#include <QPointer>
++#include <QString>
++#include <QStringList>
++#include <QUrl>
++
++class StageFetcher : public QObject
++{
++    Q_OBJECT
++
++public: 
++    explicit StageFetcher(QObject* parent =nullptr);
++
++    void fetchVariants(const QString& arch);
++    QString extractvariantBase(const QString& varaint);
++    void fetchLatestTarball(const QString& arch, const QString& variant);
++
++    void setMirrorBase(const QString& mirror);
++    void cancelOngoingRequest();
++
++signals:
++    void fetchStatusChanged(const QString& status);
++    void fetchError(const QString& error);
++    void variantsFetched(const QStringList& variants);
++    void tarballFetched(const QString& tarballs);
++
++private slots:
++    void onVariantsReplyFinished(QNetworkReply* reply);
++    void onTarballReplyFinished(QNetworkReply* reply, const QString& variant);
++
++private:
++    QString m_mirrorBase {QStringLiteral("http://distfiles.gentoo.org/releases")};
++    QNetworkAccessManager m_nam;
++    QPointer<QNetworkReply> m_currentReply;
++};
++
++#endif //STAGEFETCHER_H
+\ No newline at end of file
+diff --git a/src/modules/stagechoose/stagechoose.conf b/src/modules/stagechoose/stagechoose.conf
+new file mode 100644
+index 0000000000..59602206da
+--- /dev/null
++++ b/src/modules/stagechoose/stagechoose.conf
+@@ -0,0 +1,7 @@
++---
++type: viewmodule
++interface: qtplugin
++module: stagechoose
++
++viewmodule:
++  weight: 30
+diff --git a/src/modules/stagechoose/stagechoose.schema.yaml b/src/modules/stagechoose/stagechoose.schema.yaml
+new file mode 100644
+index 0000000000..d1e3d9aa05
+--- /dev/null
++++ b/src/modules/stagechoose/stagechoose.schema.yaml
+@@ -0,0 +1,17 @@
++---
++type: map
++mapping:
++  type:
++    type: str
++    required: true
++  interface:
++    type: str
++    required: true
++  module:
++    type: str
++    required: true
++  viewmodule:
++    type: map
++    mapping:
++      weight:
++        type: int
